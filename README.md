@@ -1,61 +1,114 @@
 # claude-code-adaptive-skills
 
-> Automatically generates a tailored `CLAUDE.md` every time you `cd` into a project folder — activating the right Claude Code skills, agents, and rules for your specific tech stack.
+> Automatically generates a tailored `CLAUDE.md` every time you `cd` into a project — giving Claude Code **dynamic skill selection** so it picks the right skills based on what you ask, not just what files you have.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
+[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)](https://github.com/keerthivinod/claude-code-adaptive-skills/releases)
 
 ---
 
-## What it does
+## The problem this solves
 
-When you `cd` into a project folder, `detector.py` runs automatically and:
+Claude Code has a powerful skill system — but by default it doesn't know which skills to apply or when. You end up manually specifying skills, or Claude Code ignores them entirely.
 
-1. **Scans** the project files (`package.json`, `requirements.txt`, `pyproject.toml`, `Cargo.toml`, etc.)
-2. **Detects** your language, framework, and domain (Python, FastAPI, React, PyTorch, LLM APIs, etc.)
-3. **Discovers** which Claude Code skills, agents, and rules you actually have installed in `~/.claude/`
-4. **Writes** a `CLAUDE.md` that activates the right ones for that project
+This plugin fixes that in two ways:
 
-The result: every project Claude Code opens already knows exactly which skills to use — without you having to set anything up.
+1. **Stack detection** — scans your project and activates the right skills for your language and framework automatically
+2. **Dynamic skill selection** — generates a routing guide so Claude Code picks skills based on *what you ask*, not just *what files you have*
+
+The result: say *"improve the frontend"* and Claude Code activates frontend skills. Say *"add authentication"* and it switches to backend/security skills. Say *"write tests"* and it pulls testing skills. All automatically, for every project.
 
 ---
 
-## Example output
+## How it works
 
-For a Python FastAPI + React project:
+When you `cd` into a project:
+
+1. **Detects** your stack from project files (`package.json`, `requirements.txt`, `Cargo.toml`, etc.)
+2. **Discovers** which skills, agents, and rules you have installed in `~/.claude/`
+3. **Writes** a `CLAUDE.md` with two sections:
+   - **Always-active skills** — matched to your detected stack, applied every session
+   - **Dynamic Skill Selection Guide** — tells Claude Code which skills to activate based on the user's task intent
+
+---
+
+## Dynamic Skill Selection Guide
+
+This is the core of v3.0.0. The generated `CLAUDE.md` contains a guide like this (only listing skills you actually have installed):
 
 ```markdown
-<!-- claude-code-adaptive-skills -->
-# CLAUDE.md — my-api-project
+## Dynamic Skill Selection
 
-## Project Stack
-- **Languages:** python, nodejs, typescript
-- **Frameworks:** fastapi, react
-- **Domain:** llm-api, fullstack
+Read the user's request and activate the appropriate skills below.
 
-## Active Skills
-- `fastapi-expert`
-- `python-pro`
-- `react-expert`
-- `typescript-pro`
-- `fullstack-guardian`
+### Frontend / UI / Styling / Components / Design
+Triggers: frontend, UI, styling, CSS, layout, design, component, animation, responsive...
+Skills: `react-expert`, `frontend-patterns`, `typescript-pro`
+Agents: `typescript-reviewer`, `performance-optimizer`
 
-## Recommended Agents
-- `python-reviewer`
-- `build-error-resolver`
-- `typescript-reviewer`
-- `performance-optimizer`
+### Backend / API / Server / Routes / Business Logic
+Triggers: backend, API, server, route, endpoint, authentication, authorisation...
+Skills: `fastapi-expert`, `python-pro`, `backend-patterns`
+Agents: `python-reviewer`, `build-error-resolver`
 
-## Active Rules
-- `~/.claude/rules/python/coding-style.md`
-- `~/.claude/rules/python/testing.md`
-- `~/.claude/rules/python/security.md`
+### Testing / TDD / Unit Tests / E2E / Coverage
+Triggers: test, TDD, unit test, coverage, mock, pytest, Jest, Playwright...
+Skills: `tdd-workflow`, `e2e-testing`
+Agents: `tdd-guide`, `pr-test-analyzer`
 
-## Project Commands
-- **Start:** `uvicorn main:app --reload`
-- **Test:** `pytest`
-- **Build:** `npm run build`
+### Performance / Optimisation / Speed / Bundle Size
+Triggers: performance, optimise, slow, speed, loading, bundle size, cache...
+Agents: `performance-optimizer`
+
+### Security / Auth / Vulnerabilities / Secrets
+Triggers: security, vulnerability, JWT, OAuth, CSRF, XSS, SQL injection...
+Skills: `python-patterns`, `backend-patterns`
+Agents: `code-reviewer`
+
+### AI / LLM / Prompts / Agents / RAG / Embeddings
+Triggers: AI, LLM, prompt, Claude, OpenAI, embedding, RAG, vector, agent...
+Skills: `claude-api`, `python-pro`, `mcp-server-patterns`
+
+### Refactoring / Code Quality / Architecture
+Triggers: refactor, clean up, restructure, architecture, patterns, SOLID...
+Skills: `python-patterns`, `frontend-patterns`, `fullstack-guardian`
+Agents: `code-reviewer`, `performance-optimizer`
+```
+
+Claude Code reads this guide at the start of every session and follows it for every request.
+
+---
+
+## Example CLAUDE.md output
+
+For a Node.js website project with `react-expert`, `frontend-patterns`, `typescript-pro`, `tdd-workflow`, and `performance-optimizer` installed:
+
+```markdown
+# CLAUDE.md — my-website
+
+## Always-Active Skills
+- `javascript-pro`
+
+## Default Agents
+- `build-error-resolver`, `typescript-reviewer`, `code-reviewer`, `performance-optimizer`
+
+## Dynamic Skill Selection
+
+### Frontend / UI / Styling / Components / Design
+Triggers: frontend, UI, styling, CSS, layout, design, component, animation...
+Skills: `react-expert`, `frontend-patterns`, `typescript-pro`
+Agents: `typescript-reviewer`, `performance-optimizer`
+
+### Testing / TDD
+Triggers: test, TDD, unit test, coverage...
+Skills: `tdd-workflow`
+Agents: `tdd-guide`
+
+### Performance / Optimisation
+Triggers: performance, optimise, slow, speed...
+Agents: `performance-optimizer`
 ```
 
 ---
@@ -87,29 +140,29 @@ The installer:
 
 ### Restart PowerShell
 
-Close and reopen your terminal. Then `cd` into any project — you'll see:
+Close and reopen your terminal. Then `cd` into any project:
 
 ```
-[adaptive-skills] ✓ my-project | stack: python, nodejs | skills: fastapi-expert, python-pro (+2 more)
+[adaptive-skills] ✓ my-project | stack: nodejs | skills: javascript-pro
 ```
+
+A `CLAUDE.md` with the full Dynamic Skill Selection Guide appears in your project folder.
 
 ---
 
-## How it works
-
-### Detection logic
+## Detection support
 
 | File found | Detected |
 |---|---|
 | `requirements.txt` / `pyproject.toml` | Python |
-| `torch` / `pytorch` in deps | PyTorch domain |
-| `openai` / `anthropic` / `langchain` in deps | LLM API domain |
-| `fastapi` / `uvicorn` in deps | FastAPI framework |
-| `flask` in deps | Flask framework |
-| `django` in deps | Django framework |
+| `fastapi` / `uvicorn` in deps | FastAPI |
+| `flask` in deps | Flask |
+| `django` in deps | Django |
+| `torch` / `pytorch` in deps | PyTorch |
+| `openai` / `anthropic` / `langchain` in deps | LLM API |
 | `package.json` | Node.js |
-| `react` in npm deps | React framework |
-| `next` in npm deps | Next.js framework |
+| `react` in npm deps | React |
+| `next` in npm deps | Next.js |
 | `tsconfig.json` or `typescript` in deps | TypeScript |
 | `Cargo.toml` | Rust |
 | `go.mod` | Go |
@@ -117,54 +170,13 @@ Close and reopen your terminal. Then `cd` into any project — you'll see:
 | `*.csproj` / `*.sln` | C# / .NET |
 | `pom.xml` | Java (Maven) |
 | `build.gradle` | Java/Kotlin (Gradle) |
-| `.env` / `.env.example` | Secrets guidance |
 | `Dockerfile` / `docker-compose.yml` | Docker guidance |
 | Both Python + Node.js | Full-stack combo |
 | `tests/` / `__tests__/` dir | TDD guidance |
 
-### Skill mapping
-
-The detector maps detected stack → installed skill names from `~/.claude/skills/`:
-
-| Stack | Skills activated |
-|---|---|
-| Python | `python-pro`, `python-patterns` |
-| FastAPI | `fastapi-expert`, `python-pro` |
-| Flask | `python-pro`, `backend-patterns` |
-| Django | `django-patterns` |
-| React | `react-expert`, `frontend-patterns` |
-| Next.js | `nextjs-developer`, `react-expert` |
-| TypeScript | `typescript-pro` |
-| Full-stack | `fullstack-guardian` |
-| Rust | `rust-patterns` |
-| Go | `golang-patterns` |
-| PyTorch | `python-pro` |
-| LLM API | `python-pro`, `claude-api` |
-| MCP | `mcp-server-patterns` |
-
-Only skills that are **actually installed** in your `~/.claude/skills/` are included — no phantom references.
-
-### Agent mapping
-
-Similarly maps detected stack → relevant agents from `~/.claude/agents/`:
-
-| Stack | Agents recommended |
-|---|---|
-| Python | `python-reviewer`, `build-error-resolver` |
-| PyTorch | `pytorch-build-resolver`, `python-reviewer` |
-| TypeScript/React | `typescript-reviewer`, `build-error-resolver` |
-| TDD | `tdd-guide`, `pr-test-analyzer` |
-| All projects | `code-reviewer`, `performance-optimizer` |
-
 ---
 
-## Usage
-
-### Automatic (normal use)
-
-Just `cd` into a project. CLAUDE.md is generated or refreshed automatically.
-
-### Manual commands
+## Manual commands
 
 ```powershell
 # Preview without writing (dry run)
@@ -185,7 +197,7 @@ python ~/.claude/adaptive-skills/detector.py --claude-dir C:\custom\.claude
 
 ### Protecting manual edits
 
-If you manually edit a `CLAUDE.md`, the detector **will not overwrite it** (it checks for the `<!-- claude-code-adaptive-skills -->` marker). Use `--force` only when you want to regenerate from scratch.
+If you manually edit a `CLAUDE.md`, the detector will not overwrite it (it checks for the `<!-- claude-code-adaptive-skills -->` marker). Use `--force` to regenerate from scratch.
 
 ### Uninstall
 
@@ -193,25 +205,11 @@ If you manually edit a `CLAUDE.md`, the detector **will not overwrite it** (it c
 .\install.ps1 -Uninstall
 ```
 
-This removes `~/.claude/adaptive-skills/` and cleanly strips the hook from your PowerShell profile.
-
----
-
-## Compatibility
-
-| Component | Requirement |
-|---|---|
-| Python | 3.10+ (uses `X \| Y` union syntax) |
-| PowerShell | 7.0+ (`#Requires -Version 7.0`) |
-| Claude Code | Any version |
-| everything-claude-code | Optional but recommended |
-| Operating System | Windows (PowerShell hook); detector.py works on macOS/Linux too |
-
 ---
 
 ## macOS / Linux
 
-The `detector.py` script itself is cross-platform. For auto-triggering on directory change, add this to your `~/.zshrc` or `~/.bashrc`:
+The `detector.py` script is cross-platform. Add this to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
 # claude-code-adaptive-skills hook
@@ -221,20 +219,40 @@ _adaptive_skills_check() {
 autoload -U add-zsh-hook
 add-zsh-hook chpwd _adaptive_skills_check  # zsh
 
-# For bash, use PROMPT_COMMAND:
+# For bash:
 # PROMPT_COMMAND="_adaptive_skills_check; $PROMPT_COMMAND"
 ```
 
 ---
 
-## Contributing
+## Adding new intent categories
 
-PRs welcome! To add support for a new language or framework:
+To add a new task category (e.g. "GraphQL"):
 
-1. Add detection logic in `detect_stack()` in `detector.py`
-2. Add skill mapping in `SKILL_MAP`
-3. Add agent mapping in `AGENT_MAP`
-4. Test with `python detector.py --dry-run /path/to/sample-project`
+1. Open `detector.py`
+2. Add an entry to `INTENT_MAP`:
+```python
+"graphql": {
+    "label": "GraphQL / Schema / Resolvers / Subscriptions",
+    "triggers": "GraphQL, schema, resolver, mutation, subscription, Apollo",
+    "skills": ["graphql-patterns", "backend-patterns"],
+    "agents": ["code-reviewer"],
+},
+```
+3. Re-run `.\install.ps1` to update the installed version
+4. Run `python ~/.claude/adaptive-skills/detector.py --force` in your project
+
+---
+
+## Compatibility
+
+| Component | Requirement |
+|---|---|
+| Python | 3.10+ |
+| PowerShell | 7.0+ |
+| Claude Code | Any version |
+| everything-claude-code | Optional but recommended |
+| OS | Windows (PowerShell hook); detector.py works on macOS/Linux |
 
 ---
 

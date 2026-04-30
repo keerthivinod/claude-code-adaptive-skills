@@ -41,7 +41,6 @@ function Invoke-AdaptiveSkills {
         } catch {}
     }
 }
-`$originalPrompt = if (Get-Command prompt -ErrorAction SilentlyContinue) { Get-Item function:prompt } else { `$null }
 function global:Set-Location {
     Microsoft.PowerShell.Management\Set-Location @args
     Invoke-AdaptiveSkills

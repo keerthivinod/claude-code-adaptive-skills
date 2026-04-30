@@ -5,6 +5,10 @@ Scans a project folder, detects the tech stack, discovers which Claude Code
 skills are actually installed, and writes a tailored CLAUDE.md that activates
 the right skills and agents for the project.
 
+The CLAUDE.md includes a Dynamic Skill Selection Guide so Claude Code picks
+the right skills automatically based on what the user is asking for — not
+just the project stack.
+
 Usage:
     python detector.py [project_path] [--claude-dir PATH] [--dry-run] [--force]
 
@@ -19,33 +23,34 @@ import os
 import sys
 from pathlib import Path
 
-VERSION = "2.0.0"
+VERSION = "3.0.0"
 MARKER  = "<!-- claude-code-adaptive-skills -->"
 
+# ── Stack → skills (which skills are relevant for each detected stack key) ────
 SKILL_MAP: dict[str, list[str]] = {
-    "python":     ["python-pro", "python-patterns"],
-    "nodejs":     ["javascript-pro"],
-    "typescript": ["typescript-pro"],
-    "rust":       ["rust-patterns"],
-    "go":         ["golang-patterns"],
-    "cpp":        ["cpp-coding-standards"],
-    "java":       ["java-coding-standards"],
-    "kotlin":     ["kotlin-patterns"],
-    "dart":       ["dart-flutter-patterns"],
-    "csharp":     ["dotnet-patterns"],
-    "php":        ["laravel-patterns"],
-    "flask":      ["python-pro", "backend-patterns"],
-    "fastapi":    ["fastapi-expert", "python-pro"],
-    "django":     ["django-patterns"],
-    "react":      ["react-expert", "frontend-patterns"],
-    "nextjs":     ["nextjs-developer", "react-expert"],
-    "vue":        ["frontend-patterns"],
-    "express":    ["backend-patterns"],
-    "nestjs":     ["nestjs-expert", "nestjs-patterns"],
-    "springboot": ["springboot-patterns"],
-    "ktor":       ["kotlin-ktor-patterns"],
-    "laravel":    ["laravel-patterns"],
-    "flutter":    ["dart-flutter-patterns"],
+    "python":         ["python-pro", "python-patterns"],
+    "nodejs":         ["javascript-pro"],
+    "typescript":     ["typescript-pro"],
+    "rust":           ["rust-patterns"],
+    "go":             ["golang-patterns"],
+    "cpp":            ["cpp-coding-standards"],
+    "java":           ["java-coding-standards"],
+    "kotlin":         ["kotlin-patterns"],
+    "dart":           ["dart-flutter-patterns"],
+    "csharp":         ["dotnet-patterns"],
+    "php":            ["laravel-patterns"],
+    "flask":          ["python-pro", "backend-patterns"],
+    "fastapi":        ["fastapi-expert", "python-pro"],
+    "django":         ["django-patterns"],
+    "react":          ["react-expert", "frontend-patterns"],
+    "nextjs":         ["nextjs-developer", "react-expert"],
+    "vue":            ["frontend-patterns"],
+    "express":        ["backend-patterns"],
+    "nestjs":         ["nestjs-expert", "nestjs-patterns"],
+    "springboot":     ["springboot-patterns"],
+    "ktor":           ["kotlin-ktor-patterns"],
+    "laravel":        ["laravel-patterns"],
+    "flutter":        ["dart-flutter-patterns"],
     "pytorch":        ["python-pro"],
     "tensorflow":     ["python-pro"],
     "huggingface":    ["python-pro"],
@@ -55,12 +60,13 @@ SKILL_MAP: dict[str, list[str]] = {
     "ai-ml-generic":  ["python-pro"],
     "mcp":            ["mcp-server-patterns"],
     "android":        ["android-clean-architecture"],
-    "fullstack":  ["fullstack-guardian"],
-    "tdd":        ["tdd-workflow"],
-    "e2e":        ["e2e-testing"],
-    "api-design": ["api-design"],
+    "fullstack":      ["fullstack-guardian"],
+    "tdd":            ["tdd-workflow"],
+    "e2e":            ["e2e-testing"],
+    "api-design":     ["api-design"],
 }
 
+# ── Stack → agents ─────────────────────────────────────────────────────────────
 AGENT_MAP: dict[str, list[str]] = {
     "python":     ["python-reviewer", "build-error-resolver"],
     "nodejs":     ["build-error-resolver", "typescript-reviewer"],
@@ -77,6 +83,72 @@ AGENT_MAP: dict[str, list[str]] = {
     "tdd":        ["tdd-guide", "pr-test-analyzer"],
 }
 
+# ── Intent → skills (for dynamic selection based on what user asks for) ────────
+# Maps user task intent → skill names that should be activated for that intent.
+# Claude Code reads this guide and picks skills based on the user's request.
+INTENT_MAP: dict[str, dict] = {
+    "frontend": {
+        "label": "Frontend / UI / Styling / Components / Design",
+        "triggers": "frontend, UI, styling, CSS, layout, design, component, animation, responsive, theme, colour, color, button, navbar, hero, landing page, improve the look, redesign, visual",
+        "skills": ["react-expert", "nextjs-developer", "frontend-patterns", "typescript-pro", "javascript-pro", "vue-patterns", "svelte-patterns", "web-animations", "css-patterns"],
+        "agents": ["typescript-reviewer", "performance-optimizer"],
+    },
+    "backend": {
+        "label": "Backend / API / Server / Routes / Business Logic",
+        "triggers": "backend, API, server, route, endpoint, controller, middleware, REST, GraphQL, authentication, authorisation, authorization, login, session, database query",
+        "skills": ["fastapi-expert", "python-pro", "backend-patterns", "django-patterns", "express-patterns", "nestjs-expert", "nestjs-patterns", "springboot-patterns", "api-design", "golang-patterns", "rust-patterns"],
+        "agents": ["python-reviewer", "build-error-resolver"],
+    },
+    "database": {
+        "label": "Database / ORM / Queries / Schema / Migrations",
+        "triggers": "database, DB, SQL, ORM, query, migration, schema, model, table, index, relation, Prisma, SQLAlchemy, TypeORM, Mongoose",
+        "skills": ["backend-patterns", "python-patterns", "python-pro"],
+        "agents": ["code-reviewer"],
+    },
+    "testing": {
+        "label": "Testing / TDD / Unit Tests / E2E / Coverage",
+        "triggers": "test, TDD, unit test, integration test, e2e, coverage, mock, stub, fixture, pytest, Jest, Vitest, Playwright, Cypress",
+        "skills": ["tdd-workflow", "e2e-testing", "python-patterns"],
+        "agents": ["tdd-guide", "pr-test-analyzer"],
+    },
+    "performance": {
+        "label": "Performance / Optimisation / Speed / Bundle Size",
+        "triggers": "performance, optimise, optimize, slow, speed, loading, bundle size, memory, cache, lazy load, profiling",
+        "skills": ["python-patterns", "frontend-patterns"],
+        "agents": ["performance-optimizer"],
+    },
+    "security": {
+        "label": "Security / Auth / Vulnerabilities / Secrets",
+        "triggers": "security, vulnerability, auth, JWT, OAuth, CSRF, XSS, SQL injection, secrets, .env, encryption, HTTPS, CORS",
+        "skills": ["python-patterns", "backend-patterns"],
+        "agents": ["code-reviewer"],
+    },
+    "ai_llm": {
+        "label": "AI / LLM / Prompts / Agents / RAG / Embeddings",
+        "triggers": "AI, LLM, prompt, Claude, OpenAI, GPT, embedding, RAG, vector, agent, tool call, function calling, memory, chat, streaming",
+        "skills": ["claude-api", "python-pro", "mcp-server-patterns", "python-patterns"],
+        "agents": ["python-reviewer"],
+    },
+    "devops": {
+        "label": "DevOps / Docker / CI/CD / Deployment / Build",
+        "triggers": "Docker, container, deploy, CI/CD, GitHub Actions, build, pipeline, Kubernetes, cloud, environment, production",
+        "skills": ["python-patterns", "backend-patterns"],
+        "agents": ["build-error-resolver"],
+    },
+    "refactor": {
+        "label": "Refactoring / Code Quality / Architecture / Patterns",
+        "triggers": "refactor, clean up, restructure, improve code, architecture, patterns, SOLID, DRY, readability, maintainability",
+        "skills": ["python-patterns", "frontend-patterns", "backend-patterns", "fullstack-guardian"],
+        "agents": ["code-reviewer", "performance-optimizer"],
+    },
+    "mobile": {
+        "label": "Mobile / Flutter / Android / iOS",
+        "triggers": "mobile, Flutter, Android, iOS, widget, screen, navigation, app",
+        "skills": ["dart-flutter-patterns", "android-clean-architecture", "kotlin-patterns"],
+        "agents": ["dart-build-resolver", "flutter-reviewer"],
+    },
+}
+
 PROJECT_INDICATORS = {
     "package.json", "requirements.txt", "pyproject.toml", "setup.py",
     "Pipfile", "Cargo.toml", "go.mod", "Makefile", "CMakeLists.txt",
@@ -86,11 +158,11 @@ PROJECT_INDICATORS = {
 
 
 def find_claude_dir() -> "Path | None":
-    candidates = [
-        Path.home() / ".claude",
-        Path(os.environ.get("USERPROFILE", "")) / ".claude",
-        Path(os.environ.get("HOME", "")) / ".claude",
-    ]
+    candidates = [Path.home() / ".claude"]
+    for var in ("USERPROFILE", "HOME"):
+        val = os.environ.get(var, "").strip()
+        if val:
+            candidates.append(Path(val) / ".claude")
     for c in candidates:
         if c.is_dir():
             return c
@@ -313,7 +385,49 @@ def resolve_agents(stack: dict, available_agents: set) -> list:
     return result
 
 
-def build_claude_md(project_path, stack, active_skills, active_agents, active_rules):
+def build_dynamic_skill_guide(available_skills: set, available_agents: set) -> list:
+    """
+    Build the dynamic skill selection guide section.
+    Only includes intents where at least one skill or agent is actually installed.
+    """
+    lines = [
+        "## Dynamic Skill Selection",
+        "",
+        "**Read the user's request and activate the appropriate skills below.**",
+        "You do not need to use all skills at once — pick what matches the task.",
+        "",
+    ]
+
+    found_any = False
+    for intent_key, intent in INTENT_MAP.items():
+        matched_skills = [s for s in intent["skills"] if s in available_skills]
+        matched_agents = [a for a in intent["agents"] if a in available_agents]
+
+        if not matched_skills and not matched_agents:
+            continue  # skip intents with nothing installed
+
+        found_any = True
+        lines.append(f"### {intent['label']}")
+        lines.append(f"*Triggers: {intent['triggers']}*")
+        lines.append("")
+        if matched_skills:
+            lines.append(f"**Skills:** {', '.join(f'`{s}`' for s in matched_skills)}")
+        if matched_agents:
+            lines.append(f"**Agents:** {', '.join(f'`{a}`' for a in matched_agents)}")
+        lines.append("")
+
+    if not found_any:
+        lines += [
+            "> No skills installed yet. Install from:",
+            "> https://github.com/Jeffallan/everything-claude-code",
+            "",
+        ]
+
+    return lines
+
+
+def build_claude_md(project_path, stack, active_skills, active_agents, active_rules,
+                    available_skills, available_agents):
     project_name = project_path.name
     langs   = ", ".join(stack["languages"])  or "unknown"
     fws     = ", ".join(stack["frameworks"]) or "none"
@@ -323,7 +437,13 @@ def build_claude_md(project_path, stack, active_skills, active_agents, active_ru
         MARKER,
         f"# CLAUDE.md — {project_name}",
         f"> Generated by [claude-code-adaptive-skills](https://github.com/keerthivinod/claude-code-adaptive-skills) v{VERSION}",
-        f"> Re-run `python ~/.claude/adaptive-skills/detector.py` to refresh.",
+        f"> Re-run `python ~/.claude/adaptive-skills/detector.py --force` to refresh.",
+        "",
+        "## How to use this file",
+        "This CLAUDE.md has two parts:",
+        "1. **Always-active skills** — automatically applied based on your detected project stack.",
+        "2. **Dynamic Skill Selection** — pick the right skills based on what the user is asking for.",
+        "Read the user's request, check the Dynamic Skill Selection section, and activate the matching skills.",
         "",
         "## Project Stack",
         f"- **Languages:** {langs}",
@@ -333,21 +453,29 @@ def build_claude_md(project_path, stack, active_skills, active_agents, active_ru
     ]
 
     if active_skills:
-        lines += ["## Active Skills", "Claude Code should apply these installed skills for this project:", ""]
+        lines += [
+            "## Always-Active Skills",
+            "These skills match your detected project stack and should always be applied:",
+            "",
+        ]
         for s in active_skills:
             lines.append(f"- `{s}`")
         lines.append("")
     else:
-        lines += ["## Skills", "> No matching skills found in your Claude Code installation.", "> Install skills from https://github.com/Jeffallan/everything-claude-code", ""]
+        lines += [
+            "## Skills",
+            "> No stack-matched skills found. Check the Dynamic Skill Selection section below.",
+            "",
+        ]
 
     if active_agents:
-        lines += ["## Recommended Agents", "Invoke these agents for specific tasks:", ""]
+        lines += ["## Default Agents", ""]
         for a in active_agents:
             lines.append(f"- `{a}`")
         lines.append("")
 
     if active_rules:
-        lines += ["## Active Rules", "These rule files are automatically applied:", ""]
+        lines += ["## Active Rules", ""]
         for r in active_rules:
             lines.append(f"- `~/.claude/{r}`")
         lines.append("")
@@ -359,39 +487,35 @@ def build_claude_md(project_path, stack, active_skills, active_agents, active_ru
             lines.append(f"- **{label.capitalize()}:** `{cmd}`")
         lines.append("")
 
+    # Dynamic skill selection guide
+    lines += build_dynamic_skill_guide(available_skills, available_agents)
+
+    # Stack-specific guidance
     guidance: list = []
     if "python" in stack["languages"]:
         guidance += ["### Python",
-            "- Use virtual environment: activate with `.\\venv\\Scripts\\activate` (Windows) or `source venv/bin/activate`",
+            "- Use virtual environment: `.\\venv\\Scripts\\activate` (Windows) or `source venv/bin/activate`",
             "- Load secrets via `python-dotenv` — never hardcode",
-            "- Type hints required on all function signatures (enforced by `python-pro` skill)"]
+            "- Type hints required on all function signatures"]
     if "pytorch" in stack["domains"]:
-        guidance += ["### PyTorch / CUDA",
+        guidance += ["### PyTorch",
             "- Always check `torch.cuda.is_available()` before training",
-            "- Call `model.eval()` and use `torch.no_grad()` during inference",
-            "- Pin torch version in requirements.txt — CUDA compatibility is version-sensitive"]
+            "- Call `model.eval()` and `torch.no_grad()` during inference"]
     if "llm-api" in stack["domains"]:
         guidance += ["### LLM API",
             "- Store all API keys in `.env` (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)",
-            "- Handle rate limits with retry logic (exponential backoff)",
-            "- For local models via LM Studio: set `ANTHROPIC_BASE_URL=http://localhost:1234`"]
-    if "vector-db" in stack["domains"]:
-        guidance += ["### Vector DB / Memory",
-            "- Connection strings go in `.env` — never in code",
-            "- Match embedding dimensions between your model and the index",
-            "- Batch upserts are faster than single inserts"]
+            "- Handle rate limits with exponential backoff retry logic"]
     if "fullstack" in stack["domains"]:
         guidance += ["### Full-Stack",
             "- Run backend and frontend in separate terminals",
-            "- CORS must be configured on the backend to allow frontend origin",
-            "- API base URL in frontend `.env` as `VITE_API_URL` or `REACT_APP_API_URL`"]
+            "- CORS must be configured on the backend to allow the frontend origin"]
     if stack.get("has_docker"):
         guidance += ["### Docker",
             "- Rebuild after dependency changes: `docker-compose up --build`",
-            "- Never put secrets in Dockerfile — use env files or Docker secrets"]
+            "- Never put secrets in Dockerfile — use env files"]
 
     if guidance:
-        lines += ["## Guidance", ""] + guidance + [""]
+        lines += ["## Stack Guidance", ""] + guidance + [""]
 
     lines += [
         "## General",
@@ -438,7 +562,7 @@ def main():
     if not is_project:
         sys.exit(0)
 
-    claude_dir = claude_arg or find_claude_dir()
+    claude_dir       = claude_arg or find_claude_dir()
     available_skills = discover_skills(claude_dir) if claude_dir else set()
     available_agents = discover_agents(claude_dir) if claude_dir else set()
     available_rules  = discover_rules(claude_dir)  if claude_dir else []
@@ -459,7 +583,10 @@ def main():
             if rule.startswith("rules/common"):
                 filtered_rules.append(rule)
 
-    content = build_claude_md(project_path, stack, active_skills, active_agents, filtered_rules)
+    content = build_claude_md(
+        project_path, stack, active_skills, active_agents, filtered_rules,
+        available_skills, available_agents
+    )
 
     if dry_run:
         print(content)
