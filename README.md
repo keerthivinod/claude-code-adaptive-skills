@@ -1,24 +1,34 @@
 # claude-code-adaptive-skills
 
-> Automatically generates a tailored `CLAUDE.md` every time you `cd` into a project — giving Claude Code **dynamic skill selection** so it picks the right skills based on what you ask, not just what files you have.
+> Automatically generates a tailored `CLAUDE.md` every time you `cd` into a project — giving Claude Code **dynamic skill selection** so it picks the right skills, agents, and slash commands based on what you ask, with zero user intervention.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
-[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)](https://github.com/keerthivinod/claude-code-adaptive-skills/releases)
+[![Version](https://img.shields.io/badge/version-4.0.0-green.svg)](https://github.com/keerthivinod/claude-code-adaptive-skills/releases)
 
 ---
 
 ## The problem this solves
 
-Claude Code has a powerful skill system — but by default it doesn't know which skills to apply or when. You end up manually specifying skills, or Claude Code ignores them entirely.
+Claude Code has a powerful skill system — but by default it doesn't know which skills, agents, or slash commands to apply or when. You end up manually specifying them, or Claude Code ignores them entirely.
 
 This plugin fixes that in two ways:
 
 1. **Stack detection** — scans your project and activates the right skills for your language and framework automatically
-2. **Dynamic skill selection** — generates a routing guide so Claude Code picks skills based on *what you ask*, not just *what files you have*
+2. **Dynamic skill selection** — generates a routing guide so Claude Code picks skills, agents, AND slash commands based on *what you ask*, not just *what files you have*
 
-The result: say *"improve the frontend"* and Claude Code activates frontend skills. Say *"add authentication"* and it switches to backend/security skills. Say *"write tests"* and it pulls testing skills. All automatically, for every project.
+The result: say *"improve the frontend"* and Claude Code activates frontend skills and runs accessibility audits. Say *"write tests"* and it switches to TDD skills and invokes `/tdd`. Say *"plan this feature"* and it pulls in architect agents and runs `/plan`. All automatically, for every project — no intervention needed.
+
+---
+
+## What's new in v4.0.0
+
+- **Slash commands included** — the generated `CLAUDE.md` now lists which `/commands` to run for each intent, not just skills and agents
+- **20 intent categories** — expanded from 10 to cover documents, visual design, MCP building, planning, team workflows, debugging, code review, data science, content/SEO, and more
+- **Full inventory coverage** — maps every installed skill, agent, and command including `docx`, `pdf`, `pptx`, `xlsx`, `canvas-design`, `algorithmic-art`, `mcp-builder`, `web-artifacts-builder`, `internal-comms`, `linkedin`, and all 100+ agents and commands from [everything-claude-code](https://github.com/Jeffallan/everything-claude-code)
+- **`discover_commands()`** — new function scans `~/.claude/commands/` and only lists commands you actually have installed
+- **Richer status line** — shows command count on install: `| commands: 103`
 
 ---
 
@@ -27,89 +37,107 @@ The result: say *"improve the frontend"* and Claude Code activates frontend skil
 When you `cd` into a project:
 
 1. **Detects** your stack from project files (`package.json`, `requirements.txt`, `Cargo.toml`, etc.)
-2. **Discovers** which skills, agents, and rules you have installed in `~/.claude/`
+2. **Discovers** which skills, agents, commands, and rules you have installed in `~/.claude/`
 3. **Writes** a `CLAUDE.md` with two sections:
    - **Always-active skills** — matched to your detected stack, applied every session
-   - **Dynamic Skill Selection Guide** — tells Claude Code which skills to activate based on the user's task intent
+   - **Dynamic Skill Selection Guide** — tells Claude Code which skills, agents, and `/commands` to activate based on the user's task intent
 
 ---
 
-## Dynamic Skill Selection Guide
+## Dynamic Skill Selection Guide (v4.0.0)
 
-This is the core of v3.0.0. The generated `CLAUDE.md` contains a guide like this (only listing skills you actually have installed):
+The generated `CLAUDE.md` contains a guide like this (only listing resources you actually have installed):
 
 ```markdown
 ## Dynamic Skill Selection
 
-Read the user's request and activate the appropriate skills below.
+Read the user's request and activate the appropriate skills, agents, and slash commands below.
+Match the user's task to the closest intent category and use everything listed. No user
+intervention required — apply automatically.
 
 ### Frontend / UI / Styling / Components / Design
-Triggers: frontend, UI, styling, CSS, layout, design, component, animation, responsive...
-Skills: `react-expert`, `frontend-patterns`, `typescript-pro`
-Agents: `typescript-reviewer`, `performance-optimizer`
+*Triggers: frontend, UI, styling, CSS, layout, design, component, animation...*
+**Skills:** `react-expert`, `frontend-patterns`, `typescript-pro`, `senior-frontend`
+**Agents:** `typescript-reviewer`, `performance-optimizer`, `a11y-architect`
+**Commands:** `/accessibility-audit`, `/code-review`, `/performance-optimization`
 
 ### Backend / API / Server / Routes / Business Logic
-Triggers: backend, API, server, route, endpoint, authentication, authorisation...
-Skills: `fastapi-expert`, `python-pro`, `backend-patterns`
-Agents: `python-reviewer`, `build-error-resolver`
+*Triggers: backend, API, server, route, endpoint, authentication...*
+**Skills:** `fastapi-expert`, `python-pro`, `backend-patterns`, `api-design`
+**Agents:** `python-reviewer`, `build-error-resolver`, `fastapi-pro`, `graphql-architect`
+**Commands:** `/code-review`, `/api-mock`, `/feature-dev`
 
 ### Testing / TDD / Unit Tests / E2E / Coverage
-Triggers: test, TDD, unit test, coverage, mock, pytest, Jest, Playwright...
-Skills: `tdd-workflow`, `e2e-testing`
-Agents: `tdd-guide`, `pr-test-analyzer`
+*Triggers: test, TDD, unit test, e2e, coverage, mock, pytest, Jest...*
+**Skills:** `tdd-workflow`, `e2e-testing`, `python-testing`, `django-tdd`
+**Agents:** `tdd-guide`, `pr-test-analyzer`, `tdd-orchestrator`, `test-automator`
+**Commands:** `/tdd`, `/e2e`, `/test-coverage`, `/quality-gate`, `/verify`
 
-### Performance / Optimisation / Speed / Bundle Size
-Triggers: performance, optimise, slow, speed, loading, bundle size, cache...
-Agents: `performance-optimizer`
+### AI / LLM / Prompts / Agents / RAG / Embeddings / MCP
+*Triggers: AI, LLM, prompt, Claude, OpenAI, embedding, RAG, vector, MCP...*
+**Skills:** `claude-api`, `python-pro`, `mcp-server-patterns`, `mcp-builder`
+**Agents:** `python-reviewer`, `loop-operator`, `dx-optimizer`
+**Commands:** `/prompt-optimize`, `/multi-agent-optimize`, `/loop-start`, `/orchestrate`
 
-### Security / Auth / Vulnerabilities / Secrets
-Triggers: security, vulnerability, JWT, OAuth, CSRF, XSS, SQL injection...
-Skills: `python-patterns`, `backend-patterns`
-Agents: `code-reviewer`
+### Documents / Reports / Word / PDF / Presentations / Spreadsheets
+*Triggers: document, Word, DOCX, PDF, PowerPoint, PPTX, slide, Excel, XLSX...*
+**Skills:** `docx`, `pdf`, `pptx`, `xlsx`, `doc-coauthoring`
+**Agents:** `doc-updater`
+**Commands:** `/doc-generate`, `/update-docs`
 
-### AI / LLM / Prompts / Agents / RAG / Embeddings
-Triggers: AI, LLM, prompt, Claude, OpenAI, embedding, RAG, vector, agent...
-Skills: `claude-api`, `python-pro`, `mcp-server-patterns`
+### Planning / Architecture / System Design / Roadmap / PRD
+*Triggers: plan, architecture, system design, PRD, spec, C4 diagram...*
+**Skills:** `senior-architect`, `fullstack-guardian`, `api-design`
+**Agents:** `architect`, `planner`, `business-analyst`, `code-architect`
+**Commands:** `/plan`, `/c4-architecture`, `/feature-dev`, `/prp-prd`
 
-### Refactoring / Code Quality / Architecture
-Triggers: refactor, clean up, restructure, architecture, patterns, SOLID...
-Skills: `python-patterns`, `frontend-patterns`, `fullstack-guardian`
-Agents: `code-reviewer`, `performance-optimizer`
+### Team Workflows / Multi-Agent / Delegation / Orchestration
+*Triggers: team, multi-agent, delegate, parallel, spawn, coordinate, workflow...*
+**Agents:** `team-lead`, `team-debugger`, `chief-of-staff`, `loop-operator`
+**Commands:** `/team-debug`, `/team-feature`, `/workflow-automate`, `/orchestrate`
+
+### Debugging / Error Resolution / Bug Fixing
+*Triggers: bug, error, exception, crash, fix, debug, traceback, not working...*
+**Skills:** `verification-loop`, `impeccable`
+**Agents:** `debugger`, `build-error-resolver`, `silent-failure-hunter`
+**Commands:** `/build-fix`, `/verify`, `/code-explain`
+
+### Visual Design / Generative Art / GIF / Branding / Themes
+*Triggers: art, poster, graphic, generative, GIF, brand, theme, colour palette...*
+**Skills:** `canvas-design`, `algorithmic-art`, `slack-gif-creator`, `theme-factory`
+
+### ... and 11 more intent categories
 ```
 
-Claude Code reads this guide at the start of every session and follows it for every request.
+Claude Code reads this guide at the start of every session and follows it for every request — no prompting needed.
 
 ---
 
-## Example CLAUDE.md output
+## Full list of intent categories (v4.0.0)
 
-For a Node.js website project with `react-expert`, `frontend-patterns`, `typescript-pro`, `tdd-workflow`, and `performance-optimizer` installed:
-
-```markdown
-# CLAUDE.md — my-website
-
-## Always-Active Skills
-- `javascript-pro`
-
-## Default Agents
-- `build-error-resolver`, `typescript-reviewer`, `code-reviewer`, `performance-optimizer`
-
-## Dynamic Skill Selection
-
-### Frontend / UI / Styling / Components / Design
-Triggers: frontend, UI, styling, CSS, layout, design, component, animation...
-Skills: `react-expert`, `frontend-patterns`, `typescript-pro`
-Agents: `typescript-reviewer`, `performance-optimizer`
-
-### Testing / TDD
-Triggers: test, TDD, unit test, coverage...
-Skills: `tdd-workflow`
-Agents: `tdd-guide`
-
-### Performance / Optimisation
-Triggers: performance, optimise, slow, speed...
-Agents: `performance-optimizer`
-```
+| Category | What it covers |
+|---|---|
+| Frontend / UI | React, CSS, design, components, accessibility |
+| Backend / API | REST, GraphQL, auth, microservices |
+| Database | SQL, ORM, schema, migrations |
+| Testing / TDD | Unit, E2E, coverage, mocking |
+| Performance | Speed, bundle size, profiling |
+| Security | Auth, OWASP, secrets, vulnerabilities |
+| AI / LLM / MCP | Prompts, agents, RAG, embeddings, MCP servers |
+| DevOps | Docker, CI/CD, Kubernetes, Terraform |
+| Refactoring | Code quality, patterns, technical debt |
+| Mobile | Flutter, Android, iOS, React Native |
+| Documents | Word, PDF, PowerPoint, Excel |
+| Visual Design | Canvas art, GIFs, branding, themes |
+| Web Artifacts | HTML artifacts, React components, dashboards |
+| MCP / Tool Building | MCP servers, plugins, integrations |
+| Planning / Architecture | System design, PRDs, C4 diagrams |
+| Team Workflows | Multi-agent, delegation, orchestration |
+| Documentation | README, API docs, tutorials |
+| Content / SEO | Blog, marketing, LinkedIn, internal comms |
+| Debugging | Bug fixing, error resolution, root cause |
+| Code Review | PR review, quality gates, linting |
+| Data / ML | Data science, analytics, GAN, notebooks |
 
 ---
 
@@ -120,7 +148,7 @@ Agents: `performance-optimizer`
 - Python 3.10+
 - PowerShell 7+ (Windows)
 - [Claude Code](https://claude.ai/code) installed
-- Optionally: [everything-claude-code](https://github.com/Jeffallan/everything-claude-code) for a full skill library
+- Optionally: [everything-claude-code](https://github.com/Jeffallan/everything-claude-code) for a full skill, agent, and command library
 
 ### One-command install (Windows / PowerShell 7)
 
@@ -143,7 +171,7 @@ The installer:
 Close and reopen your terminal. Then `cd` into any project:
 
 ```
-[adaptive-skills] ✓ my-project | stack: nodejs | skills: javascript-pro
+[adaptive-skills] ✓ my-project | stack: nodejs | skills: javascript-pro | commands: 103
 ```
 
 A `CLAUDE.md` with the full Dynamic Skill Selection Guide appears in your project folder.
@@ -160,6 +188,7 @@ A `CLAUDE.md` with the full Dynamic Skill Selection Guide appears in your projec
 | `django` in deps | Django |
 | `torch` / `pytorch` in deps | PyTorch |
 | `openai` / `anthropic` / `langchain` in deps | LLM API |
+| `mcp` / `fastmcp` in deps | MCP server |
 | `package.json` | Node.js |
 | `react` in npm deps | React |
 | `next` in npm deps | Next.js |
@@ -236,7 +265,8 @@ To add a new task category (e.g. "GraphQL"):
     "label": "GraphQL / Schema / Resolvers / Subscriptions",
     "triggers": "GraphQL, schema, resolver, mutation, subscription, Apollo",
     "skills": ["graphql-patterns", "backend-patterns"],
-    "agents": ["code-reviewer"],
+    "agents": ["graphql-architect", "code-reviewer"],
+    "commands": ["api-mock", "code-review"],
 },
 ```
 3. Re-run `.\install.ps1` to update the installed version

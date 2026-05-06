@@ -2,12 +2,12 @@
 claude-code-adaptive-skills — detector.py
 ==========================================
 Scans a project folder, detects the tech stack, discovers which Claude Code
-skills are actually installed, and writes a tailored CLAUDE.md that activates
-the right skills and agents for the project.
+skills, agents, and commands are actually installed, and writes a tailored
+CLAUDE.md that activates the right skills and agents for the project.
 
 The CLAUDE.md includes a Dynamic Skill Selection Guide so Claude Code picks
-the right skills automatically based on what the user is asking for — not
-just the project stack.
+the right skills, agents, and slash commands automatically based on what the
+user is asking for — not just the project stack. No user intervention required.
 
 Usage:
     python detector.py [project_path] [--claude-dir PATH] [--dry-run] [--force]
@@ -23,42 +23,42 @@ import os
 import sys
 from pathlib import Path
 
-VERSION = "3.0.0"
+VERSION = "4.0.0"
 MARKER  = "<!-- claude-code-adaptive-skills -->"
 
 # ── Stack → skills (which skills are relevant for each detected stack key) ────
 SKILL_MAP: dict[str, list[str]] = {
-    "python":         ["python-pro", "python-patterns"],
+    "python":         ["python-pro", "python-patterns", "python-testing"],
     "nodejs":         ["javascript-pro"],
     "typescript":     ["typescript-pro"],
-    "rust":           ["rust-patterns"],
-    "go":             ["golang-patterns"],
-    "cpp":            ["cpp-coding-standards"],
+    "rust":           ["rust-patterns", "rust-testing"],
+    "go":             ["golang-patterns", "golang-testing"],
+    "cpp":            ["cpp-coding-standards", "cpp-testing"],
     "java":           ["java-coding-standards"],
-    "kotlin":         ["kotlin-patterns"],
+    "kotlin":         ["kotlin-patterns", "kotlin-testing"],
     "dart":           ["dart-flutter-patterns"],
-    "csharp":         ["dotnet-patterns"],
+    "csharp":         ["dotnet-patterns", "csharp-testing"],
     "php":            ["laravel-patterns"],
     "flask":          ["python-pro", "backend-patterns"],
     "fastapi":        ["fastapi-expert", "python-pro"],
-    "django":         ["django-patterns"],
+    "django":         ["django-patterns", "django-tdd"],
     "react":          ["react-expert", "frontend-patterns"],
     "nextjs":         ["nextjs-developer", "react-expert"],
     "vue":            ["frontend-patterns"],
     "express":        ["backend-patterns"],
     "nestjs":         ["nestjs-expert", "nestjs-patterns"],
-    "springboot":     ["springboot-patterns"],
-    "ktor":           ["kotlin-ktor-patterns"],
+    "springboot":     ["springboot-patterns", "springboot-tdd"],
+    "ktor":           ["kotlin-patterns"],
     "laravel":        ["laravel-patterns"],
     "flutter":        ["dart-flutter-patterns"],
     "pytorch":        ["python-pro"],
     "tensorflow":     ["python-pro"],
     "huggingface":    ["python-pro"],
-    "llm-api":        ["python-pro", "claude-api"],
+    "llm-api":        ["python-pro", "claude-api", "mcp-server-patterns"],
     "data-science":   ["python-pro", "python-patterns"],
     "vector-db":      ["python-pro", "backend-patterns"],
     "ai-ml-generic":  ["python-pro"],
-    "mcp":            ["mcp-server-patterns"],
+    "mcp":            ["mcp-server-patterns", "mcp-builder"],
     "android":        ["android-clean-architecture"],
     "fullstack":      ["fullstack-guardian"],
     "tdd":            ["tdd-workflow"],
@@ -71,81 +71,462 @@ AGENT_MAP: dict[str, list[str]] = {
     "python":     ["python-reviewer", "build-error-resolver"],
     "nodejs":     ["build-error-resolver", "typescript-reviewer"],
     "typescript": ["typescript-reviewer"],
-    "react":      ["build-error-resolver", "typescript-reviewer"],
+    "react":      ["build-error-resolver", "typescript-reviewer", "frontend-developer"],
     "pytorch":    ["pytorch-build-resolver", "python-reviewer"],
     "rust":       ["rust-build-resolver", "rust-reviewer"],
     "go":         ["go-build-resolver", "go-reviewer"],
     "java":       ["java-build-resolver", "java-reviewer"],
     "kotlin":     ["kotlin-build-resolver", "kotlin-reviewer"],
-    "cpp":        ["cpp-build-resolver", "cpp-reviewer"],
-    "dart":       ["dart-build-resolver", "flutter-reviewer"],
+    "cpp":        ["build-error-resolver"],
+    "dart":       ["flutter-reviewer"],
     "fullstack":  ["code-reviewer", "performance-optimizer"],
-    "tdd":        ["tdd-guide", "pr-test-analyzer"],
+    "tdd":        ["tdd-guide", "pr-test-analyzer", "tdd-orchestrator"],
+    "fastapi":    ["fastapi-pro", "python-reviewer"],
+    "django":     ["django-pro", "python-reviewer"],
+    "nextjs":     ["typescript-reviewer", "frontend-developer"],
+    "llm-api":    ["loop-operator"],
+    "mcp":        ["dx-optimizer"],
 }
 
-# ── Intent → skills (for dynamic selection based on what user asks for) ────────
-# Maps user task intent → skill names that should be activated for that intent.
-# Claude Code reads this guide and picks skills based on the user's request.
+# ── Intent → skills / agents / commands ───────────────────────────────────────
+# The complete routing guide. Claude Code reads this and picks skills/agents/
+# commands automatically based on the user's task intent (keywords/triggers).
+# All entries reference real installed resources — the guide only outputs those
+# that are actually present on the machine.
 INTENT_MAP: dict[str, dict] = {
+
+    # ── Frontend / UI ──────────────────────────────────────────────────────────
     "frontend": {
         "label": "Frontend / UI / Styling / Components / Design",
-        "triggers": "frontend, UI, styling, CSS, layout, design, component, animation, responsive, theme, colour, color, button, navbar, hero, landing page, improve the look, redesign, visual",
-        "skills": ["react-expert", "nextjs-developer", "frontend-patterns", "typescript-pro", "javascript-pro", "vue-patterns", "svelte-patterns", "web-animations", "css-patterns"],
-        "agents": ["typescript-reviewer", "performance-optimizer"],
+        "triggers": (
+            "frontend, UI, styling, CSS, layout, design, component, animation, "
+            "responsive, theme, colour, color, button, navbar, hero, landing page, "
+            "improve the look, redesign, visual, Tailwind, SCSS, styled-components, "
+            "Figma, wireframe, mockup, prototype, interface"
+        ),
+        "skills": [
+            "react-expert", "nextjs-developer", "frontend-patterns", "typescript-pro",
+            "javascript-pro", "frontend-design", "web-design-guidelines",
+            "distinctive-frontend", "senior-frontend", "ui-design-system",
+            "ux-researcher-designer", "frontend-slides",
+        ],
+        "agents": [
+            "typescript-reviewer", "performance-optimizer", "frontend-developer",
+            "a11y-architect", "ui-visual-validator", "type-design-analyzer",
+        ],
+        "commands": [
+            "accessibility-audit", "code-review", "performance-optimization",
+        ],
     },
+
+    # ── Backend / API ──────────────────────────────────────────────────────────
     "backend": {
         "label": "Backend / API / Server / Routes / Business Logic",
-        "triggers": "backend, API, server, route, endpoint, controller, middleware, REST, GraphQL, authentication, authorisation, authorization, login, session, database query",
-        "skills": ["fastapi-expert", "python-pro", "backend-patterns", "django-patterns", "express-patterns", "nestjs-expert", "nestjs-patterns", "springboot-patterns", "api-design", "golang-patterns", "rust-patterns"],
-        "agents": ["python-reviewer", "build-error-resolver"],
+        "triggers": (
+            "backend, API, server, route, endpoint, controller, middleware, REST, "
+            "GraphQL, authentication, authorization, login, session, service, "
+            "microservice, handler, request, response, webhook, RPC, gRPC"
+        ),
+        "skills": [
+            "fastapi-expert", "python-pro", "backend-patterns", "django-patterns",
+            "nestjs-expert", "nestjs-patterns", "springboot-patterns", "api-design",
+            "golang-patterns", "rust-patterns", "laravel-patterns", "senior-backend",
+            "python-patterns",
+        ],
+        "agents": [
+            "python-reviewer", "build-error-resolver", "fastapi-pro", "django-pro",
+            "backend-architect", "graphql-architect", "sql-pro",
+        ],
+        "commands": [
+            "code-review", "api-mock", "python-review", "feature-dev",
+        ],
     },
+
+    # ── Database ───────────────────────────────────────────────────────────────
     "database": {
         "label": "Database / ORM / Queries / Schema / Migrations",
-        "triggers": "database, DB, SQL, ORM, query, migration, schema, model, table, index, relation, Prisma, SQLAlchemy, TypeORM, Mongoose",
-        "skills": ["backend-patterns", "python-patterns", "python-pro"],
-        "agents": ["code-reviewer"],
+        "triggers": (
+            "database, DB, SQL, ORM, query, migration, schema, model, table, index, "
+            "relation, join, Prisma, SQLAlchemy, TypeORM, Mongoose, PostgreSQL, "
+            "MySQL, SQLite, MongoDB, Redis, Cassandra, DynamoDB, supabase"
+        ),
+        "skills": [
+            "backend-patterns", "python-patterns", "python-pro",
+        ],
+        "agents": [
+            "database-architect", "database-optimizer", "database-reviewer",
+            "database-admin", "sql-pro", "data-engineer",
+        ],
+        "commands": [
+            "code-review",
+        ],
     },
+
+    # ── Testing / TDD ──────────────────────────────────────────────────────────
     "testing": {
         "label": "Testing / TDD / Unit Tests / E2E / Coverage",
-        "triggers": "test, TDD, unit test, integration test, e2e, coverage, mock, stub, fixture, pytest, Jest, Vitest, Playwright, Cypress",
-        "skills": ["tdd-workflow", "e2e-testing", "python-patterns"],
-        "agents": ["tdd-guide", "pr-test-analyzer"],
+        "triggers": (
+            "test, TDD, unit test, integration test, e2e, end-to-end, coverage, "
+            "mock, stub, fixture, spec, assert, pytest, Jest, Vitest, Playwright, "
+            "Cypress, Selenium, test suite, write tests, add tests, failing test"
+        ),
+        "skills": [
+            "tdd-workflow", "e2e-testing", "python-testing", "golang-testing",
+            "rust-testing", "cpp-testing", "csharp-testing", "kotlin-testing",
+            "django-tdd", "springboot-tdd", "python-patterns",
+        ],
+        "agents": [
+            "tdd-guide", "pr-test-analyzer", "tdd-orchestrator",
+            "test-automator", "e2e-runner",
+        ],
+        "commands": [
+            "tdd", "e2e", "test-coverage", "quality-gate", "verify",
+        ],
     },
+
+    # ── Performance / Optimisation ─────────────────────────────────────────────
     "performance": {
-        "label": "Performance / Optimisation / Speed / Bundle Size",
-        "triggers": "performance, optimise, optimize, slow, speed, loading, bundle size, memory, cache, lazy load, profiling",
-        "skills": ["python-patterns", "frontend-patterns"],
-        "agents": ["performance-optimizer"],
+        "label": "Performance / Optimisation / Speed / Bundle Size / Profiling",
+        "triggers": (
+            "performance, optimise, optimize, slow, speed, loading, bundle size, "
+            "memory leak, cache, lazy load, profiling, benchmark, throughput, "
+            "latency, bottleneck, time complexity, big-O, Core Web Vitals"
+        ),
+        "skills": [
+            "python-patterns", "frontend-patterns", "golang-patterns",
+            "rust-patterns", "backend-patterns",
+        ],
+        "agents": [
+            "performance-optimizer", "performance-engineer", "observability-engineer",
+            "silent-failure-hunter",
+        ],
+        "commands": [
+            "performance-optimization",
+        ],
     },
+
+    # ── Security ───────────────────────────────────────────────────────────────
     "security": {
-        "label": "Security / Auth / Vulnerabilities / Secrets",
-        "triggers": "security, vulnerability, auth, JWT, OAuth, CSRF, XSS, SQL injection, secrets, .env, encryption, HTTPS, CORS",
-        "skills": ["python-patterns", "backend-patterns"],
-        "agents": ["code-reviewer"],
+        "label": "Security / Auth / Vulnerabilities / Secrets / OWASP",
+        "triggers": (
+            "security, vulnerability, auth, authentication, JWT, OAuth, CSRF, XSS, "
+            "SQL injection, secrets, .env, encryption, HTTPS, CORS, sanitize, "
+            "penetration, OWASP, CVE, dependency audit, rate limit, brute force"
+        ),
+        "skills": [
+            "python-patterns", "backend-patterns", "coding-standards",
+        ],
+        "agents": [
+            "security-auditor", "security-reviewer", "backend-security-coder",
+        ],
+        "commands": [
+            "deps-audit", "code-review",
+        ],
     },
+
+    # ── AI / LLM / Agents ──────────────────────────────────────────────────────
     "ai_llm": {
-        "label": "AI / LLM / Prompts / Agents / RAG / Embeddings",
-        "triggers": "AI, LLM, prompt, Claude, OpenAI, GPT, embedding, RAG, vector, agent, tool call, function calling, memory, chat, streaming",
-        "skills": ["claude-api", "python-pro", "mcp-server-patterns", "python-patterns"],
-        "agents": ["python-reviewer"],
+        "label": "AI / LLM / Prompts / Agents / RAG / Embeddings / MCP",
+        "triggers": (
+            "AI, LLM, prompt, Claude, OpenAI, GPT, Gemini, embedding, RAG, "
+            "vector, agent, tool call, function calling, memory, chat, streaming, "
+            "fine-tune, inference, model, chain, workflow, orchestrate, multi-agent, "
+            "MCP, tool server, context, system prompt, langchain, llamaindex"
+        ),
+        "skills": [
+            "claude-api", "python-pro", "mcp-server-patterns", "python-patterns",
+            "mcp-builder", "agent-introspection-debugging",
+        ],
+        "agents": [
+            "python-reviewer", "loop-operator", "dx-optimizer",
+        ],
+        "commands": [
+            "prompt-optimize", "multi-agent-optimize", "loop-start", "loop-status",
+            "orchestrate", "model-route", "agent-sort", "improve-agent",
+        ],
     },
+
+    # ── DevOps / Infrastructure ────────────────────────────────────────────────
     "devops": {
-        "label": "DevOps / Docker / CI/CD / Deployment / Build",
-        "triggers": "Docker, container, deploy, CI/CD, GitHub Actions, build, pipeline, Kubernetes, cloud, environment, production",
-        "skills": ["python-patterns", "backend-patterns"],
-        "agents": ["build-error-resolver"],
+        "label": "DevOps / Docker / CI/CD / Deployment / Infrastructure / Build",
+        "triggers": (
+            "Docker, container, deploy, deployment, CI/CD, GitHub Actions, "
+            "GitLab CI, Jenkins, build, pipeline, Kubernetes, k8s, cloud, "
+            "AWS, GCP, Azure, environment, production, staging, Terraform, "
+            "Ansible, Helm, serverless, Lambda, VM, VPS"
+        ),
+        "skills": [
+            "python-patterns", "backend-patterns", "golang-patterns",
+        ],
+        "agents": [
+            "build-error-resolver", "deployment-engineer", "devops-troubleshooter",
+            "cloud-architect", "kubernetes-architect", "terraform-specialist",
+            "service-mesh-expert", "network-engineer", "observability-engineer",
+        ],
+        "commands": [
+            "build-fix", "devfleet", "pm2",
+        ],
     },
+
+    # ── Refactoring / Code Quality ─────────────────────────────────────────────
     "refactor": {
-        "label": "Refactoring / Code Quality / Architecture / Patterns",
-        "triggers": "refactor, clean up, restructure, improve code, architecture, patterns, SOLID, DRY, readability, maintainability",
-        "skills": ["python-patterns", "frontend-patterns", "backend-patterns", "fullstack-guardian"],
-        "agents": ["code-reviewer", "performance-optimizer"],
+        "label": "Refactoring / Code Quality / Architecture / Patterns / Technical Debt",
+        "triggers": (
+            "refactor, clean up, restructure, improve code, architecture, patterns, "
+            "SOLID, DRY, readability, maintainability, code smell, dead code, "
+            "technical debt, simplify, extract, rename, decouple, dependency"
+        ),
+        "skills": [
+            "python-patterns", "frontend-patterns", "backend-patterns",
+            "fullstack-guardian", "coding-standards", "impeccable", "senior-architect",
+            "verification-loop",
+        ],
+        "agents": [
+            "code-reviewer", "performance-optimizer", "refactor-cleaner",
+            "code-simplifier", "legacy-modernizer", "code-architect", "architect",
+        ],
+        "commands": [
+            "refactor-clean", "code-review", "tech-debt", "quality-gate",
+            "code-explain", "rules-distill",
+        ],
     },
+
+    # ── Mobile ─────────────────────────────────────────────────────────────────
     "mobile": {
-        "label": "Mobile / Flutter / Android / iOS",
-        "triggers": "mobile, Flutter, Android, iOS, widget, screen, navigation, app",
-        "skills": ["dart-flutter-patterns", "android-clean-architecture", "kotlin-patterns"],
-        "agents": ["dart-build-resolver", "flutter-reviewer"],
+        "label": "Mobile / Flutter / Android / iOS / React Native",
+        "triggers": (
+            "mobile, Flutter, Android, iOS, widget, screen, navigation, app store, "
+            "React Native, Kotlin, Swift, Jetpack Compose, SwiftUI, push notification, "
+            "offline, native, APK, IPA"
+        ),
+        "skills": [
+            "dart-flutter-patterns", "android-clean-architecture",
+            "kotlin-patterns", "kotlin-testing",
+        ],
+        "agents": [
+            "flutter-reviewer", "kotlin-build-resolver", "kotlin-reviewer",
+        ],
+        "commands": [
+            "flutter-build", "flutter-review", "flutter-test",
+            "kotlin-build", "kotlin-review", "kotlin-test",
+        ],
+    },
+
+    # ── Documents / Office ─────────────────────────────────────────────────────
+    "documents": {
+        "label": "Documents / Reports / Word / PDF / Presentations / Spreadsheets",
+        "triggers": (
+            "document, report, Word, DOCX, PDF, PowerPoint, PPTX, slide, deck, "
+            "presentation, spreadsheet, Excel, XLSX, table, memo, letter, proposal, "
+            "write a doc, create a report, generate a PDF, make slides, fill form"
+        ),
+        "skills": [
+            "docx", "pdf", "pptx", "xlsx", "doc-coauthoring",
+        ],
+        "agents": [
+            "doc-updater",
+        ],
+        "commands": [
+            "doc-generate", "update-docs",
+        ],
+    },
+
+    # ── Visual Design / Art ────────────────────────────────────────────────────
+    "visual_design": {
+        "label": "Visual Design / Generative Art / GIF / Branding / Themes",
+        "triggers": (
+            "art, illustration, poster, graphic, generative, algorithmic, p5.js, "
+            "canvas, GIF, animated GIF, Slack GIF, brand, branding, theme, colour "
+            "palette, style guide, visual identity, logo, banner, background"
+        ),
+        "skills": [
+            "canvas-design", "algorithmic-art", "slack-gif-creator",
+            "theme-factory", "brand-guidelines",
+        ],
+        "agents": [
+            "type-design-analyzer", "ui-visual-validator",
+        ],
+        "commands": [],
+    },
+
+    # ── Web Artifacts / Interactive UIs ────────────────────────────────────────
+    "web_artifacts": {
+        "label": "Web Artifacts / Interactive Apps / HTML / React Components",
+        "triggers": (
+            "HTML artifact, interactive, dashboard, widget, chart, visualization, "
+            "web app, single-page, React component, shadcn, Tailwind component, "
+            "calculator, form, tool, embed, prototype, live preview"
+        ),
+        "skills": [
+            "web-artifacts-builder", "react-expert", "frontend-patterns",
+            "javascript-pro", "typescript-pro",
+        ],
+        "agents": [
+            "frontend-developer", "ui-visual-validator",
+        ],
+        "commands": [],
+    },
+
+    # ── MCP / Tool Building ────────────────────────────────────────────────────
+    "mcp_tools": {
+        "label": "MCP Servers / Claude Tools / Plugin Building / Integrations",
+        "triggers": (
+            "MCP server, MCP tool, build a tool, Claude plugin, tool definition, "
+            "FastMCP, tool server, integration, connector, stdio, SSE, resource, "
+            "tool schema, Anthropic SDK, tool_use, build plugin, skill creator"
+        ),
+        "skills": [
+            "mcp-server-patterns", "mcp-builder", "python-pro",
+        ],
+        "agents": [
+            "dx-optimizer",
+        ],
+        "commands": [
+            "hookify", "skill-create", "skill-health", "improve-agent",
+        ],
+    },
+
+    # ── Planning / Architecture ─────────────────────────────────────────────────
+    "planning": {
+        "label": "Planning / Architecture / System Design / Roadmap / PRD",
+        "triggers": (
+            "plan, planning, architecture, system design, design doc, roadmap, "
+            "PRD, spec, proposal, diagram, C4, sequence diagram, ADR, decision, "
+            "strategy, approach, breakdown, scaffold, greenfield, start a project"
+        ),
+        "skills": [
+            "senior-architect", "fullstack-guardian", "coding-standards",
+            "api-design",
+        ],
+        "agents": [
+            "architect", "planner", "business-analyst", "chief-of-staff",
+            "code-architect", "monorepo-architect", "backend-architect",
+            "cloud-architect", "event-sourcing-architect",
+        ],
+        "commands": [
+            "plan", "c4-architecture", "feature-dev", "feature-development",
+            "prp-plan", "prp-prd", "prp-pr",
+        ],
+    },
+
+    # ── Team Workflows / Multi-Agent ───────────────────────────────────────────
+    "team_workflow": {
+        "label": "Team Workflows / Multi-Agent / Delegation / Orchestration",
+        "triggers": (
+            "team, multi-agent, delegate, orchestrate, parallel, spawn, coordinate, "
+            "run agents, sub-agent, workflow, pipeline, automate, batch, loop, "
+            "concurrent, distribute, hand off, assign task"
+        ),
+        "skills": [
+            "fullstack-guardian",
+        ],
+        "agents": [
+            "team-lead", "team-debugger", "team-implementer", "team-reviewer",
+            "chief-of-staff", "loop-operator", "planner",
+        ],
+        "commands": [
+            "team-debug", "team-delegate", "team-feature", "team-review",
+            "team-spawn", "team-status", "team-shutdown",
+            "workflow-automate", "multi-backend", "multi-frontend",
+            "multi-execute", "multi-plan", "multi-workflow",
+            "orchestrate", "devfleet",
+        ],
+    },
+
+    # ── Documentation / Docs Writing ───────────────────────────────────────────
+    "documentation": {
+        "label": "Documentation / README / API Docs / Tutorials / Changelogs",
+        "triggers": (
+            "documentation, docs, README, API docs, tutorial, guide, changelog, "
+            "write docs, generate docs, update docs, JSDoc, docstring, Swagger, "
+            "OpenAPI, Storybook, wiki, knowledge base, how-to"
+        ),
+        "skills": [
+            "doc-coauthoring", "coding-standards",
+        ],
+        "agents": [
+            "docs-architect", "docs-lookup", "doc-updater", "tutorial-engineer",
+        ],
+        "commands": [
+            "docs", "doc-generate", "update-docs",
+        ],
+    },
+
+    # ── Content / Marketing / SEO ──────────────────────────────────────────────
+    "content": {
+        "label": "Content / Marketing / SEO / Social Media / Internal Comms",
+        "triggers": (
+            "content, blog post, article, marketing, SEO, social media, LinkedIn, "
+            "email campaign, newsletter, copywriting, announcement, press release, "
+            "internal comms, memo, status update, team update"
+        ),
+        "skills": [
+            "internal-comms", "linkedin",
+        ],
+        "agents": [
+            "content-marketer", "seo-specialist", "search-specialist",
+        ],
+        "commands": [],
+    },
+
+    # ── Debugging / Error Resolution ───────────────────────────────────────────
+    "debugging": {
+        "label": "Debugging / Error Resolution / Bug Fixing / Root Cause Analysis",
+        "triggers": (
+            "bug, error, exception, crash, broken, fix, debug, traceback, "
+            "stack trace, not working, fails, unexpected, regression, "
+            "root cause, reproduce, investigate, why is this, help me fix"
+        ),
+        "skills": [
+            "verification-loop", "impeccable", "python-patterns",
+        ],
+        "agents": [
+            "debugger", "build-error-resolver", "silent-failure-hunter",
+            "team-debugger", "devops-troubleshooter",
+        ],
+        "commands": [
+            "build-fix", "verify", "code-explain",
+        ],
+    },
+
+    # ── Code Review / PR Review ────────────────────────────────────────────────
+    "code_review": {
+        "label": "Code Review / PR Review / Quality Gate / Linting",
+        "triggers": (
+            "review, PR, pull request, code review, check this, feedback, "
+            "what do you think, lint, quality, smell, anti-pattern, best practices, "
+            "LGTM, suggest improvements, critique"
+        ),
+        "skills": [
+            "coding-standards", "impeccable", "verification-loop",
+        ],
+        "agents": [
+            "code-reviewer", "refactor-cleaner", "code-simplifier",
+            "pr-test-analyzer", "healthcare-reviewer",
+        ],
+        "commands": [
+            "code-review", "review-pr", "quality-gate", "eval",
+        ],
+    },
+
+    # ── Data / Analytics / ML ──────────────────────────────────────────────────
+    "data_ml": {
+        "label": "Data Science / Analytics / Machine Learning / Jupyter",
+        "triggers": (
+            "data, dataset, analytics, machine learning, ML, model training, "
+            "Jupyter, notebook, pandas, numpy, matplotlib, seaborn, scikit-learn, "
+            "neural network, deep learning, GAN, LSTM, transformer, EDA, pipeline"
+        ),
+        "skills": [
+            "python-pro", "python-patterns", "python-testing",
+        ],
+        "agents": [
+            "data-engineer", "python-reviewer",
+            "gan-evaluator", "gan-generator", "gan-planner",
+        ],
+        "commands": [
+            "python-review",
+        ],
     },
 }
 
@@ -191,6 +572,18 @@ def discover_agents(claude_dir: Path) -> set:
         if item.is_file() and item.suffix == ".md":
             agents.add(item.stem)
     return agents
+
+
+def discover_commands(claude_dir: Path) -> set:
+    """Discover all slash commands installed in ~/.claude/commands/."""
+    commands: set = set()
+    commands_dir = claude_dir / "commands"
+    if not commands_dir.is_dir():
+        return commands
+    for item in commands_dir.iterdir():
+        if item.is_file() and item.suffix == ".md":
+            commands.add(item.stem)
+    return commands
 
 
 def discover_rules(claude_dir: Path) -> list:
@@ -385,25 +778,33 @@ def resolve_agents(stack: dict, available_agents: set) -> list:
     return result
 
 
-def build_dynamic_skill_guide(available_skills: set, available_agents: set) -> list:
+def build_dynamic_skill_guide(
+    available_skills: set,
+    available_agents: set,
+    available_commands: set,
+) -> list:
     """
     Build the dynamic skill selection guide section.
-    Only includes intents where at least one skill or agent is actually installed.
+    Only includes intents where at least one skill, agent, or command is installed.
+    Includes slash commands in the output so Claude Code runs them automatically.
     """
     lines = [
         "## Dynamic Skill Selection",
         "",
-        "**Read the user's request and activate the appropriate skills below.**",
-        "You do not need to use all skills at once — pick what matches the task.",
+        "**Read the user's request and activate the appropriate skills, agents, "
+        "and slash commands below.**",
+        "Match the user's task to the closest intent category and use everything "
+        "listed. No user intervention required — apply automatically.",
         "",
     ]
 
     found_any = False
     for intent_key, intent in INTENT_MAP.items():
-        matched_skills = [s for s in intent["skills"] if s in available_skills]
-        matched_agents = [a for a in intent["agents"] if a in available_agents]
+        matched_skills   = [s for s in intent["skills"]   if s in available_skills]
+        matched_agents   = [a for a in intent["agents"]   if a in available_agents]
+        matched_commands = [c for c in intent["commands"] if c in available_commands]
 
-        if not matched_skills and not matched_agents:
+        if not matched_skills and not matched_agents and not matched_commands:
             continue  # skip intents with nothing installed
 
         found_any = True
@@ -414,11 +815,14 @@ def build_dynamic_skill_guide(available_skills: set, available_agents: set) -> l
             lines.append(f"**Skills:** {', '.join(f'`{s}`' for s in matched_skills)}")
         if matched_agents:
             lines.append(f"**Agents:** {', '.join(f'`{a}`' for a in matched_agents)}")
+        if matched_commands:
+            cmd_list = ", ".join(f"`/{c}`" for c in matched_commands)
+            lines.append(f"**Commands:** {cmd_list}")
         lines.append("")
 
     if not found_any:
         lines += [
-            "> No skills installed yet. Install from:",
+            "> No skills, agents, or commands installed yet. Install from:",
             "> https://github.com/Jeffallan/everything-claude-code",
             "",
         ]
@@ -427,7 +831,7 @@ def build_dynamic_skill_guide(available_skills: set, available_agents: set) -> l
 
 
 def build_claude_md(project_path, stack, active_skills, active_agents, active_rules,
-                    available_skills, available_agents):
+                    available_skills, available_agents, available_commands):
     project_name = project_path.name
     langs   = ", ".join(stack["languages"])  or "unknown"
     fws     = ", ".join(stack["frameworks"]) or "none"
@@ -442,8 +846,8 @@ def build_claude_md(project_path, stack, active_skills, active_agents, active_ru
         "## How to use this file",
         "This CLAUDE.md has two parts:",
         "1. **Always-active skills** — automatically applied based on your detected project stack.",
-        "2. **Dynamic Skill Selection** — pick the right skills based on what the user is asking for.",
-        "Read the user's request, check the Dynamic Skill Selection section, and activate the matching skills.",
+        "2. **Dynamic Skill Selection** — pick the right skills, agents, and commands based on what the user is asking for.",
+        "Read the user's request, check the Dynamic Skill Selection section, and activate the matching resources automatically.",
         "",
         "## Project Stack",
         f"- **Languages:** {langs}",
@@ -487,8 +891,8 @@ def build_claude_md(project_path, stack, active_skills, active_agents, active_ru
             lines.append(f"- **{label.capitalize()}:** `{cmd}`")
         lines.append("")
 
-    # Dynamic skill selection guide
-    lines += build_dynamic_skill_guide(available_skills, available_agents)
+    # Dynamic skill selection guide (skills + agents + commands)
+    lines += build_dynamic_skill_guide(available_skills, available_agents, available_commands)
 
     # Stack-specific guidance
     guidance: list = []
@@ -562,10 +966,11 @@ def main():
     if not is_project:
         sys.exit(0)
 
-    claude_dir       = claude_arg or find_claude_dir()
-    available_skills = discover_skills(claude_dir) if claude_dir else set()
-    available_agents = discover_agents(claude_dir) if claude_dir else set()
-    available_rules  = discover_rules(claude_dir)  if claude_dir else []
+    claude_dir          = claude_arg or find_claude_dir()
+    available_skills    = discover_skills(claude_dir)   if claude_dir else set()
+    available_agents    = discover_agents(claude_dir)   if claude_dir else set()
+    available_commands  = discover_commands(claude_dir) if claude_dir else set()
+    available_rules     = discover_rules(claude_dir)    if claude_dir else []
 
     stack         = detect_stack(project_path)
     active_skills = resolve_skills(stack, available_skills)
@@ -585,7 +990,7 @@ def main():
 
     content = build_claude_md(
         project_path, stack, active_skills, active_agents, filtered_rules,
-        available_skills, available_agents
+        available_skills, available_agents, available_commands
     )
 
     if dry_run:
@@ -604,7 +1009,8 @@ def main():
     skills_str = ", ".join(active_skills[:4])  or "none installed"
     if len(active_skills) > 4:
         skills_str += f" (+{len(active_skills) - 4} more)"
-    print(f"[adaptive-skills] ✓ {project_path.name} | stack: {langs_str} | skills: {skills_str}")
+    cmds_count = len(available_commands)
+    print(f"[adaptive-skills] ✓ {project_path.name} | stack: {langs_str} | skills: {skills_str} | commands: {cmds_count}")
 
 
 if __name__ == "__main__":
