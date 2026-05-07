@@ -24,68 +24,69 @@ import sys
 from pathlib import Path
 
 VERSION = "4.0.0"
-MARKER  = "<!-- claude-code-adaptive-skills -->"
+MARKER = "<!-- claude-code-adaptive-skills -->"
+MAX_FILE_SIZE = 1 * 1024 * 1024  # 1MB limit to prevent memory exhaustion
 
 # ── Stack → skills (which skills are relevant for each detected stack key) ────
 SKILL_MAP: dict[str, list[str]] = {
-    "python":         ["python-pro", "python-patterns", "python-testing"],
-    "nodejs":         ["javascript-pro"],
-    "typescript":     ["typescript-pro"],
-    "rust":           ["rust-patterns", "rust-testing"],
-    "go":             ["golang-patterns", "golang-testing"],
-    "cpp":            ["cpp-coding-standards", "cpp-testing"],
-    "java":           ["java-coding-standards"],
-    "kotlin":         ["kotlin-patterns", "kotlin-testing"],
-    "dart":           ["dart-flutter-patterns"],
-    "csharp":         ["dotnet-patterns", "csharp-testing"],
-    "php":            ["laravel-patterns"],
-    "flask":          ["python-pro", "backend-patterns"],
-    "fastapi":        ["fastapi-expert", "python-pro"],
-    "django":         ["django-patterns", "django-tdd"],
-    "react":          ["react-expert", "frontend-patterns"],
-    "nextjs":         ["nextjs-developer", "react-expert"],
-    "vue":            ["frontend-patterns"],
-    "express":        ["backend-patterns"],
-    "nestjs":         ["nestjs-expert", "nestjs-patterns"],
-    "springboot":     ["springboot-patterns", "springboot-tdd"],
-    "ktor":           ["kotlin-patterns"],
-    "laravel":        ["laravel-patterns"],
-    "flutter":        ["dart-flutter-patterns"],
-    "pytorch":        ["python-pro"],
-    "tensorflow":     ["python-pro"],
-    "huggingface":    ["python-pro"],
-    "llm-api":        ["python-pro", "claude-api", "mcp-server-patterns"],
-    "data-science":   ["python-pro", "python-patterns"],
-    "vector-db":      ["python-pro", "backend-patterns"],
-    "ai-ml-generic":  ["python-pro"],
-    "mcp":            ["mcp-server-patterns", "mcp-builder"],
-    "android":        ["android-clean-architecture"],
-    "fullstack":      ["fullstack-guardian"],
-    "tdd":            ["tdd-workflow"],
-    "e2e":            ["e2e-testing"],
-    "api-design":     ["api-design"],
+    "python": ["python-pro", "python-patterns", "python-testing"],
+    "nodejs": ["javascript-pro"],
+    "typescript": ["typescript-pro"],
+    "rust": ["rust-patterns", "rust-testing"],
+    "go": ["golang-patterns", "golang-testing"],
+    "cpp": ["cpp-coding-standards", "cpp-testing"],
+    "java": ["java-coding-standards"],
+    "kotlin": ["kotlin-patterns", "kotlin-testing"],
+    "dart": ["dart-flutter-patterns"],
+    "csharp": ["dotnet-patterns", "csharp-testing"],
+    "php": ["laravel-patterns"],
+    "flask": ["python-pro", "backend-patterns"],
+    "fastapi": ["fastapi-expert", "python-pro"],
+    "django": ["django-patterns", "django-tdd"],
+    "react": ["react-expert", "frontend-patterns"],
+    "nextjs": ["nextjs-developer", "react-expert"],
+    "vue": ["frontend-patterns"],
+    "express": ["backend-patterns"],
+    "nestjs": ["nestjs-expert", "nestjs-patterns"],
+    "springboot": ["springboot-patterns", "springboot-tdd"],
+    "ktor": ["kotlin-patterns"],
+    "laravel": ["laravel-patterns"],
+    "flutter": ["dart-flutter-patterns"],
+    "pytorch": ["python-pro"],
+    "tensorflow": ["python-pro"],
+    "huggingface": ["python-pro"],
+    "llm-api": ["python-pro", "claude-api", "mcp-server-patterns"],
+    "data-science": ["python-pro", "python-patterns"],
+    "vector-db": ["python-pro", "backend-patterns"],
+    "ai-ml-generic": ["python-pro"],
+    "mcp": ["mcp-server-patterns", "mcp-builder"],
+    "android": ["android-clean-architecture"],
+    "fullstack": ["fullstack-guardian"],
+    "tdd": ["tdd-workflow"],
+    "e2e": ["e2e-testing"],
+    "api-design": ["api-design"],
 }
 
 # ── Stack → agents ─────────────────────────────────────────────────────────────
 AGENT_MAP: dict[str, list[str]] = {
-    "python":     ["python-reviewer", "build-error-resolver"],
-    "nodejs":     ["build-error-resolver", "typescript-reviewer"],
+    "python": ["python-reviewer", "build-error-resolver"],
+    "nodejs": ["build-error-resolver", "typescript-reviewer"],
     "typescript": ["typescript-reviewer"],
-    "react":      ["build-error-resolver", "typescript-reviewer", "frontend-developer"],
-    "pytorch":    ["pytorch-build-resolver", "python-reviewer"],
-    "rust":       ["rust-build-resolver", "rust-reviewer"],
-    "go":         ["go-build-resolver", "go-reviewer"],
-    "java":       ["java-build-resolver", "java-reviewer"],
-    "kotlin":     ["kotlin-build-resolver", "kotlin-reviewer"],
-    "cpp":        ["build-error-resolver"],
-    "dart":       ["flutter-reviewer"],
-    "fullstack":  ["code-reviewer", "performance-optimizer"],
-    "tdd":        ["tdd-guide", "pr-test-analyzer", "tdd-orchestrator"],
-    "fastapi":    ["fastapi-pro", "python-reviewer"],
-    "django":     ["django-pro", "python-reviewer"],
-    "nextjs":     ["typescript-reviewer", "frontend-developer"],
-    "llm-api":    ["loop-operator"],
-    "mcp":        ["dx-optimizer"],
+    "react": ["build-error-resolver", "typescript-reviewer", "frontend-developer"],
+    "pytorch": ["pytorch-build-resolver", "python-reviewer"],
+    "rust": ["rust-build-resolver", "rust-reviewer"],
+    "go": ["go-build-resolver", "go-reviewer"],
+    "java": ["java-build-resolver", "java-reviewer"],
+    "kotlin": ["kotlin-build-resolver", "kotlin-reviewer"],
+    "cpp": ["build-error-resolver"],
+    "dart": ["flutter-reviewer"],
+    "fullstack": ["code-reviewer", "performance-optimizer"],
+    "tdd": ["tdd-guide", "pr-test-analyzer", "tdd-orchestrator"],
+    "fastapi": ["fastapi-pro", "python-reviewer"],
+    "django": ["django-pro", "python-reviewer"],
+    "nextjs": ["typescript-reviewer", "frontend-developer"],
+    "llm-api": ["loop-operator"],
+    "mcp": ["dx-optimizer"],
 }
 
 # ── Intent → skills / agents / commands ───────────────────────────────────────
@@ -94,7 +95,6 @@ AGENT_MAP: dict[str, list[str]] = {
 # All entries reference real installed resources — the guide only outputs those
 # that are actually present on the machine.
 INTENT_MAP: dict[str, dict] = {
-
     # ── Frontend / UI ──────────────────────────────────────────────────────────
     "frontend": {
         "label": "Frontend / UI / Styling / Components / Design",
@@ -105,20 +105,33 @@ INTENT_MAP: dict[str, dict] = {
             "Figma, wireframe, mockup, prototype, interface"
         ),
         "skills": [
-            "react-expert", "nextjs-developer", "frontend-patterns", "typescript-pro",
-            "javascript-pro", "frontend-design", "web-design-guidelines",
-            "distinctive-frontend", "senior-frontend", "ui-design-system",
-            "ux-researcher-designer", "frontend-slides",
+            "react-expert",
+            "nextjs-developer",
+            "frontend-patterns",
+            "typescript-pro",
+            "javascript-pro",
+            "frontend-design",
+            "web-design-guidelines",
+            "distinctive-frontend",
+            "senior-frontend",
+            "ui-design-system",
+            "ux-researcher-designer",
+            "frontend-slides",
         ],
         "agents": [
-            "typescript-reviewer", "performance-optimizer", "frontend-developer",
-            "a11y-architect", "ui-visual-validator", "type-design-analyzer",
+            "typescript-reviewer",
+            "performance-optimizer",
+            "frontend-developer",
+            "a11y-architect",
+            "ui-visual-validator",
+            "type-design-analyzer",
         ],
         "commands": [
-            "accessibility-audit", "code-review", "performance-optimization",
+            "accessibility-audit",
+            "code-review",
+            "performance-optimization",
         ],
     },
-
     # ── Backend / API ──────────────────────────────────────────────────────────
     "backend": {
         "label": "Backend / API / Server / Routes / Business Logic",
@@ -128,20 +141,36 @@ INTENT_MAP: dict[str, dict] = {
             "microservice, handler, request, response, webhook, RPC, gRPC"
         ),
         "skills": [
-            "fastapi-expert", "python-pro", "backend-patterns", "django-patterns",
-            "nestjs-expert", "nestjs-patterns", "springboot-patterns", "api-design",
-            "golang-patterns", "rust-patterns", "laravel-patterns", "senior-backend",
+            "fastapi-expert",
+            "python-pro",
+            "backend-patterns",
+            "django-patterns",
+            "nestjs-expert",
+            "nestjs-patterns",
+            "springboot-patterns",
+            "api-design",
+            "golang-patterns",
+            "rust-patterns",
+            "laravel-patterns",
+            "senior-backend",
             "python-patterns",
         ],
         "agents": [
-            "python-reviewer", "build-error-resolver", "fastapi-pro", "django-pro",
-            "backend-architect", "graphql-architect", "sql-pro",
+            "python-reviewer",
+            "build-error-resolver",
+            "fastapi-pro",
+            "django-pro",
+            "backend-architect",
+            "graphql-architect",
+            "sql-pro",
         ],
         "commands": [
-            "code-review", "api-mock", "python-review", "feature-dev",
+            "code-review",
+            "api-mock",
+            "python-review",
+            "feature-dev",
         ],
     },
-
     # ── Database ───────────────────────────────────────────────────────────────
     "database": {
         "label": "Database / ORM / Queries / Schema / Migrations",
@@ -151,17 +180,22 @@ INTENT_MAP: dict[str, dict] = {
             "MySQL, SQLite, MongoDB, Redis, Cassandra, DynamoDB, supabase"
         ),
         "skills": [
-            "backend-patterns", "python-patterns", "python-pro",
+            "backend-patterns",
+            "python-patterns",
+            "python-pro",
         ],
         "agents": [
-            "database-architect", "database-optimizer", "database-reviewer",
-            "database-admin", "sql-pro", "data-engineer",
+            "database-architect",
+            "database-optimizer",
+            "database-reviewer",
+            "database-admin",
+            "sql-pro",
+            "data-engineer",
         ],
         "commands": [
             "code-review",
         ],
     },
-
     # ── Testing / TDD ──────────────────────────────────────────────────────────
     "testing": {
         "label": "Testing / TDD / Unit Tests / E2E / Coverage",
@@ -171,19 +205,33 @@ INTENT_MAP: dict[str, dict] = {
             "Cypress, Selenium, test suite, write tests, add tests, failing test"
         ),
         "skills": [
-            "tdd-workflow", "e2e-testing", "python-testing", "golang-testing",
-            "rust-testing", "cpp-testing", "csharp-testing", "kotlin-testing",
-            "django-tdd", "springboot-tdd", "python-patterns",
+            "tdd-workflow",
+            "e2e-testing",
+            "python-testing",
+            "golang-testing",
+            "rust-testing",
+            "cpp-testing",
+            "csharp-testing",
+            "kotlin-testing",
+            "django-tdd",
+            "springboot-tdd",
+            "python-patterns",
         ],
         "agents": [
-            "tdd-guide", "pr-test-analyzer", "tdd-orchestrator",
-            "test-automator", "e2e-runner",
+            "tdd-guide",
+            "pr-test-analyzer",
+            "tdd-orchestrator",
+            "test-automator",
+            "e2e-runner",
         ],
         "commands": [
-            "tdd", "e2e", "test-coverage", "quality-gate", "verify",
+            "tdd",
+            "e2e",
+            "test-coverage",
+            "quality-gate",
+            "verify",
         ],
     },
-
     # ── Performance / Optimisation ─────────────────────────────────────────────
     "performance": {
         "label": "Performance / Optimisation / Speed / Bundle Size / Profiling",
@@ -193,18 +241,22 @@ INTENT_MAP: dict[str, dict] = {
             "latency, bottleneck, time complexity, big-O, Core Web Vitals"
         ),
         "skills": [
-            "python-patterns", "frontend-patterns", "golang-patterns",
-            "rust-patterns", "backend-patterns",
+            "python-patterns",
+            "frontend-patterns",
+            "golang-patterns",
+            "rust-patterns",
+            "backend-patterns",
         ],
         "agents": [
-            "performance-optimizer", "performance-engineer", "observability-engineer",
+            "performance-optimizer",
+            "performance-engineer",
+            "observability-engineer",
             "silent-failure-hunter",
         ],
         "commands": [
             "performance-optimization",
         ],
     },
-
     # ── Security ───────────────────────────────────────────────────────────────
     "security": {
         "label": "Security / Auth / Vulnerabilities / Secrets / OWASP",
@@ -214,16 +266,20 @@ INTENT_MAP: dict[str, dict] = {
             "penetration, OWASP, CVE, dependency audit, rate limit, brute force"
         ),
         "skills": [
-            "python-patterns", "backend-patterns", "coding-standards",
+            "python-patterns",
+            "backend-patterns",
+            "coding-standards",
         ],
         "agents": [
-            "security-auditor", "security-reviewer", "backend-security-coder",
+            "security-auditor",
+            "security-reviewer",
+            "backend-security-coder",
         ],
         "commands": [
-            "deps-audit", "code-review",
+            "deps-audit",
+            "code-review",
         ],
     },
-
     # ── AI / LLM / Agents ──────────────────────────────────────────────────────
     "ai_llm": {
         "label": "AI / LLM / Prompts / Agents / RAG / Embeddings / MCP",
@@ -234,18 +290,29 @@ INTENT_MAP: dict[str, dict] = {
             "MCP, tool server, context, system prompt, langchain, llamaindex"
         ),
         "skills": [
-            "claude-api", "python-pro", "mcp-server-patterns", "python-patterns",
-            "mcp-builder", "agent-introspection-debugging",
+            "claude-api",
+            "python-pro",
+            "mcp-server-patterns",
+            "python-patterns",
+            "mcp-builder",
+            "agent-introspection-debugging",
         ],
         "agents": [
-            "python-reviewer", "loop-operator", "dx-optimizer",
+            "python-reviewer",
+            "loop-operator",
+            "dx-optimizer",
         ],
         "commands": [
-            "prompt-optimize", "multi-agent-optimize", "loop-start", "loop-status",
-            "orchestrate", "model-route", "agent-sort", "improve-agent",
+            "prompt-optimize",
+            "multi-agent-optimize",
+            "loop-start",
+            "loop-status",
+            "orchestrate",
+            "model-route",
+            "agent-sort",
+            "improve-agent",
         ],
     },
-
     # ── DevOps / Infrastructure ────────────────────────────────────────────────
     "devops": {
         "label": "DevOps / Docker / CI/CD / Deployment / Infrastructure / Build",
@@ -256,18 +323,27 @@ INTENT_MAP: dict[str, dict] = {
             "Ansible, Helm, serverless, Lambda, VM, VPS"
         ),
         "skills": [
-            "python-patterns", "backend-patterns", "golang-patterns",
+            "python-patterns",
+            "backend-patterns",
+            "golang-patterns",
         ],
         "agents": [
-            "build-error-resolver", "deployment-engineer", "devops-troubleshooter",
-            "cloud-architect", "kubernetes-architect", "terraform-specialist",
-            "service-mesh-expert", "network-engineer", "observability-engineer",
+            "build-error-resolver",
+            "deployment-engineer",
+            "devops-troubleshooter",
+            "cloud-architect",
+            "kubernetes-architect",
+            "terraform-specialist",
+            "service-mesh-expert",
+            "network-engineer",
+            "observability-engineer",
         ],
         "commands": [
-            "build-fix", "devfleet", "pm2",
+            "build-fix",
+            "devfleet",
+            "pm2",
         ],
     },
-
     # ── Refactoring / Code Quality ─────────────────────────────────────────────
     "refactor": {
         "label": "Refactoring / Code Quality / Architecture / Patterns / Technical Debt",
@@ -277,20 +353,33 @@ INTENT_MAP: dict[str, dict] = {
             "technical debt, simplify, extract, rename, decouple, dependency"
         ),
         "skills": [
-            "python-patterns", "frontend-patterns", "backend-patterns",
-            "fullstack-guardian", "coding-standards", "impeccable", "senior-architect",
+            "python-patterns",
+            "frontend-patterns",
+            "backend-patterns",
+            "fullstack-guardian",
+            "coding-standards",
+            "impeccable",
+            "senior-architect",
             "verification-loop",
         ],
         "agents": [
-            "code-reviewer", "performance-optimizer", "refactor-cleaner",
-            "code-simplifier", "legacy-modernizer", "code-architect", "architect",
+            "code-reviewer",
+            "performance-optimizer",
+            "refactor-cleaner",
+            "code-simplifier",
+            "legacy-modernizer",
+            "code-architect",
+            "architect",
         ],
         "commands": [
-            "refactor-clean", "code-review", "tech-debt", "quality-gate",
-            "code-explain", "rules-distill",
+            "refactor-clean",
+            "code-review",
+            "tech-debt",
+            "quality-gate",
+            "code-explain",
+            "rules-distill",
         ],
     },
-
     # ── Mobile ─────────────────────────────────────────────────────────────────
     "mobile": {
         "label": "Mobile / Flutter / Android / iOS / React Native",
@@ -300,18 +389,25 @@ INTENT_MAP: dict[str, dict] = {
             "offline, native, APK, IPA"
         ),
         "skills": [
-            "dart-flutter-patterns", "android-clean-architecture",
-            "kotlin-patterns", "kotlin-testing",
+            "dart-flutter-patterns",
+            "android-clean-architecture",
+            "kotlin-patterns",
+            "kotlin-testing",
         ],
         "agents": [
-            "flutter-reviewer", "kotlin-build-resolver", "kotlin-reviewer",
+            "flutter-reviewer",
+            "kotlin-build-resolver",
+            "kotlin-reviewer",
         ],
         "commands": [
-            "flutter-build", "flutter-review", "flutter-test",
-            "kotlin-build", "kotlin-review", "kotlin-test",
+            "flutter-build",
+            "flutter-review",
+            "flutter-test",
+            "kotlin-build",
+            "kotlin-review",
+            "kotlin-test",
         ],
     },
-
     # ── Documents / Office ─────────────────────────────────────────────────────
     "documents": {
         "label": "Documents / Reports / Word / PDF / Presentations / Spreadsheets",
@@ -321,16 +417,20 @@ INTENT_MAP: dict[str, dict] = {
             "write a doc, create a report, generate a PDF, make slides, fill form"
         ),
         "skills": [
-            "docx", "pdf", "pptx", "xlsx", "doc-coauthoring",
+            "docx",
+            "pdf",
+            "pptx",
+            "xlsx",
+            "doc-coauthoring",
         ],
         "agents": [
             "doc-updater",
         ],
         "commands": [
-            "doc-generate", "update-docs",
+            "doc-generate",
+            "update-docs",
         ],
     },
-
     # ── Visual Design / Art ────────────────────────────────────────────────────
     "visual_design": {
         "label": "Visual Design / Generative Art / GIF / Branding / Themes",
@@ -340,15 +440,18 @@ INTENT_MAP: dict[str, dict] = {
             "palette, style guide, visual identity, logo, banner, background"
         ),
         "skills": [
-            "canvas-design", "algorithmic-art", "slack-gif-creator",
-            "theme-factory", "brand-guidelines",
+            "canvas-design",
+            "algorithmic-art",
+            "slack-gif-creator",
+            "theme-factory",
+            "brand-guidelines",
         ],
         "agents": [
-            "type-design-analyzer", "ui-visual-validator",
+            "type-design-analyzer",
+            "ui-visual-validator",
         ],
         "commands": [],
     },
-
     # ── Web Artifacts / Interactive UIs ────────────────────────────────────────
     "web_artifacts": {
         "label": "Web Artifacts / Interactive Apps / HTML / React Components",
@@ -358,15 +461,18 @@ INTENT_MAP: dict[str, dict] = {
             "calculator, form, tool, embed, prototype, live preview"
         ),
         "skills": [
-            "web-artifacts-builder", "react-expert", "frontend-patterns",
-            "javascript-pro", "typescript-pro",
+            "web-artifacts-builder",
+            "react-expert",
+            "frontend-patterns",
+            "javascript-pro",
+            "typescript-pro",
         ],
         "agents": [
-            "frontend-developer", "ui-visual-validator",
+            "frontend-developer",
+            "ui-visual-validator",
         ],
         "commands": [],
     },
-
     # ── MCP / Tool Building ────────────────────────────────────────────────────
     "mcp_tools": {
         "label": "MCP Servers / Claude Tools / Plugin Building / Integrations",
@@ -376,16 +482,20 @@ INTENT_MAP: dict[str, dict] = {
             "tool schema, Anthropic SDK, tool_use, build plugin, skill creator"
         ),
         "skills": [
-            "mcp-server-patterns", "mcp-builder", "python-pro",
+            "mcp-server-patterns",
+            "mcp-builder",
+            "python-pro",
         ],
         "agents": [
             "dx-optimizer",
         ],
         "commands": [
-            "hookify", "skill-create", "skill-health", "improve-agent",
+            "hookify",
+            "skill-create",
+            "skill-health",
+            "improve-agent",
         ],
     },
-
     # ── Planning / Architecture ─────────────────────────────────────────────────
     "planning": {
         "label": "Planning / Architecture / System Design / Roadmap / PRD",
@@ -395,20 +505,32 @@ INTENT_MAP: dict[str, dict] = {
             "strategy, approach, breakdown, scaffold, greenfield, start a project"
         ),
         "skills": [
-            "senior-architect", "fullstack-guardian", "coding-standards",
+            "senior-architect",
+            "fullstack-guardian",
+            "coding-standards",
             "api-design",
         ],
         "agents": [
-            "architect", "planner", "business-analyst", "chief-of-staff",
-            "code-architect", "monorepo-architect", "backend-architect",
-            "cloud-architect", "event-sourcing-architect",
+            "architect",
+            "planner",
+            "business-analyst",
+            "chief-of-staff",
+            "code-architect",
+            "monorepo-architect",
+            "backend-architect",
+            "cloud-architect",
+            "event-sourcing-architect",
         ],
         "commands": [
-            "plan", "c4-architecture", "feature-dev", "feature-development",
-            "prp-plan", "prp-prd", "prp-pr",
+            "plan",
+            "c4-architecture",
+            "feature-dev",
+            "feature-development",
+            "prp-plan",
+            "prp-prd",
+            "prp-pr",
         ],
     },
-
     # ── Team Workflows / Multi-Agent ───────────────────────────────────────────
     "team_workflow": {
         "label": "Team Workflows / Multi-Agent / Delegation / Orchestration",
@@ -421,18 +543,32 @@ INTENT_MAP: dict[str, dict] = {
             "fullstack-guardian",
         ],
         "agents": [
-            "team-lead", "team-debugger", "team-implementer", "team-reviewer",
-            "chief-of-staff", "loop-operator", "planner",
+            "team-lead",
+            "team-debugger",
+            "team-implementer",
+            "team-reviewer",
+            "chief-of-staff",
+            "loop-operator",
+            "planner",
         ],
         "commands": [
-            "team-debug", "team-delegate", "team-feature", "team-review",
-            "team-spawn", "team-status", "team-shutdown",
-            "workflow-automate", "multi-backend", "multi-frontend",
-            "multi-execute", "multi-plan", "multi-workflow",
-            "orchestrate", "devfleet",
+            "team-debug",
+            "team-delegate",
+            "team-feature",
+            "team-review",
+            "team-spawn",
+            "team-status",
+            "team-shutdown",
+            "workflow-automate",
+            "multi-backend",
+            "multi-frontend",
+            "multi-execute",
+            "multi-plan",
+            "multi-workflow",
+            "orchestrate",
+            "devfleet",
         ],
     },
-
     # ── Documentation / Docs Writing ───────────────────────────────────────────
     "documentation": {
         "label": "Documentation / README / API Docs / Tutorials / Changelogs",
@@ -442,16 +578,21 @@ INTENT_MAP: dict[str, dict] = {
             "OpenAPI, Storybook, wiki, knowledge base, how-to"
         ),
         "skills": [
-            "doc-coauthoring", "coding-standards",
+            "doc-coauthoring",
+            "coding-standards",
         ],
         "agents": [
-            "docs-architect", "docs-lookup", "doc-updater", "tutorial-engineer",
+            "docs-architect",
+            "docs-lookup",
+            "doc-updater",
+            "tutorial-engineer",
         ],
         "commands": [
-            "docs", "doc-generate", "update-docs",
+            "docs",
+            "doc-generate",
+            "update-docs",
         ],
     },
-
     # ── Content / Marketing / SEO ──────────────────────────────────────────────
     "content": {
         "label": "Content / Marketing / SEO / Social Media / Internal Comms",
@@ -461,14 +602,16 @@ INTENT_MAP: dict[str, dict] = {
             "internal comms, memo, status update, team update"
         ),
         "skills": [
-            "internal-comms", "linkedin",
+            "internal-comms",
+            "linkedin",
         ],
         "agents": [
-            "content-marketer", "seo-specialist", "search-specialist",
+            "content-marketer",
+            "seo-specialist",
+            "search-specialist",
         ],
         "commands": [],
     },
-
     # ── Debugging / Error Resolution ───────────────────────────────────────────
     "debugging": {
         "label": "Debugging / Error Resolution / Bug Fixing / Root Cause Analysis",
@@ -478,17 +621,23 @@ INTENT_MAP: dict[str, dict] = {
             "root cause, reproduce, investigate, why is this, help me fix"
         ),
         "skills": [
-            "verification-loop", "impeccable", "python-patterns",
+            "verification-loop",
+            "impeccable",
+            "python-patterns",
         ],
         "agents": [
-            "debugger", "build-error-resolver", "silent-failure-hunter",
-            "team-debugger", "devops-troubleshooter",
+            "debugger",
+            "build-error-resolver",
+            "silent-failure-hunter",
+            "team-debugger",
+            "devops-troubleshooter",
         ],
         "commands": [
-            "build-fix", "verify", "code-explain",
+            "build-fix",
+            "verify",
+            "code-explain",
         ],
     },
-
     # ── Code Review / PR Review ────────────────────────────────────────────────
     "code_review": {
         "label": "Code Review / PR Review / Quality Gate / Linting",
@@ -498,17 +647,24 @@ INTENT_MAP: dict[str, dict] = {
             "LGTM, suggest improvements, critique"
         ),
         "skills": [
-            "coding-standards", "impeccable", "verification-loop",
+            "coding-standards",
+            "impeccable",
+            "verification-loop",
         ],
         "agents": [
-            "code-reviewer", "refactor-cleaner", "code-simplifier",
-            "pr-test-analyzer", "healthcare-reviewer",
+            "code-reviewer",
+            "refactor-cleaner",
+            "code-simplifier",
+            "pr-test-analyzer",
+            "healthcare-reviewer",
         ],
         "commands": [
-            "code-review", "review-pr", "quality-gate", "eval",
+            "code-review",
+            "review-pr",
+            "quality-gate",
+            "eval",
         ],
     },
-
     # ── Data / Analytics / ML ──────────────────────────────────────────────────
     "data_ml": {
         "label": "Data Science / Analytics / Machine Learning / Jupyter",
@@ -518,11 +674,16 @@ INTENT_MAP: dict[str, dict] = {
             "neural network, deep learning, GAN, LSTM, transformer, EDA, pipeline"
         ),
         "skills": [
-            "python-pro", "python-patterns", "python-testing",
+            "python-pro",
+            "python-patterns",
+            "python-testing",
         ],
         "agents": [
-            "data-engineer", "python-reviewer",
-            "gan-evaluator", "gan-generator", "gan-planner",
+            "data-engineer",
+            "python-reviewer",
+            "gan-evaluator",
+            "gan-generator",
+            "gan-planner",
         ],
         "commands": [
             "python-review",
@@ -531,10 +692,24 @@ INTENT_MAP: dict[str, dict] = {
 }
 
 PROJECT_INDICATORS = {
-    "package.json", "requirements.txt", "pyproject.toml", "setup.py",
-    "Pipfile", "Cargo.toml", "go.mod", "Makefile", "CMakeLists.txt",
-    "build.gradle", "pom.xml", ".git", "Dockerfile", "docker-compose.yml",
-    "docker-compose.yaml", "composer.json", "Gemfile", "pubspec.yaml",
+    "package.json",
+    "requirements.txt",
+    "pyproject.toml",
+    "setup.py",
+    "Pipfile",
+    "Cargo.toml",
+    "go.mod",
+    "Makefile",
+    "CMakeLists.txt",
+    "build.gradle",
+    "pom.xml",
+    ".git",
+    "Dockerfile",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "composer.json",
+    "Gemfile",
+    "pubspec.yaml",
 }
 
 
@@ -599,6 +774,8 @@ def discover_rules(claude_dir: Path) -> list:
 
 def _read_json(path: Path) -> dict:
     try:
+        if path.stat().st_size > MAX_FILE_SIZE:
+            return {}
         return json.loads(path.read_text(encoding="utf-8", errors="ignore"))
     except Exception:
         return {}
@@ -606,6 +783,8 @@ def _read_json(path: Path) -> dict:
 
 def _read_text(path: Path) -> str:
     try:
+        if path.stat().st_size > MAX_FILE_SIZE:
+            return ""
         return path.read_text(encoding="utf-8", errors="ignore").lower()
     except Exception:
         return ""
@@ -613,10 +792,16 @@ def _read_text(path: Path) -> str:
 
 def detect_stack(project_path: Path) -> dict:
     detected: dict = {
-        "languages": [], "frameworks": [], "domains": [],
-        "tools": [], "commands": {},
-        "has_env": False, "has_docker": False, "has_git": False,
-        "has_tests": False, "has_ci": False,
+        "languages": [],
+        "frameworks": [],
+        "domains": [],
+        "tools": [],
+        "commands": {},
+        "has_env": False,
+        "has_docker": False,
+        "has_git": False,
+        "has_tests": False,
+        "has_ci": False,
     }
     try:
         entries = list(project_path.iterdir())
@@ -624,19 +809,31 @@ def detect_stack(project_path: Path) -> dict:
         return detected
 
     file_names = {e.name for e in entries if e.is_file()}
-    dir_names  = {e.name for e in entries if e.is_dir()}
+    dir_names = {e.name for e in entries if e.is_dir()}
 
-    detected["has_git"]    = ".git" in dir_names
-    detected["has_env"]    = bool(file_names & {".env", ".env.example", ".env.local", ".env.sample"})
-    detected["has_docker"] = bool(file_names & {"Dockerfile", "docker-compose.yml", "docker-compose.yaml"})
-    detected["has_ci"]     = bool(dir_names & {".github", ".gitlab", ".circleci"})
+    detected["has_git"] = ".git" in dir_names
+    detected["has_env"] = bool(
+        file_names & {".env", ".env.example", ".env.local", ".env.sample"}
+    )
+    detected["has_docker"] = bool(
+        file_names & {"Dockerfile", "docker-compose.yml", "docker-compose.yaml"}
+    )
+    detected["has_ci"] = bool(dir_names & {".github", ".gitlab", ".circleci"})
 
-    py_markers = {"requirements.txt", "pyproject.toml", "setup.py", "Pipfile", "setup.cfg"}
+    py_markers = {
+        "requirements.txt",
+        "pyproject.toml",
+        "setup.py",
+        "Pipfile",
+        "setup.cfg",
+    }
     has_python = bool(file_names & py_markers) or bool(list(project_path.glob("*.py")))
 
     if has_python:
         detected["languages"].append("python")
-        deps = _read_text(project_path / "requirements.txt") + _read_text(project_path / "pyproject.toml")
+        deps = _read_text(project_path / "requirements.txt") + _read_text(
+            project_path / "pyproject.toml"
+        )
 
         for keywords, name, cmd in [
             (["flask"], "flask", "python -m flask run"),
@@ -651,17 +848,28 @@ def detect_stack(project_path: Path) -> dict:
             (["torch", "pytorch", "torchvision", "torchaudio"], "pytorch"),
             (["tensorflow", "keras"], "tensorflow"),
             (["transformers", "diffusers", "huggingface_hub"], "huggingface"),
-            (["openai", "anthropic", "langchain", "llama_index", "groq", "together"], "llm-api"),
-            (["numpy", "pandas", "sklearn", "scikit-learn", "matplotlib", "scipy"], "data-science"),
-            (["zep", "mem0", "chromadb", "pinecone", "weaviate", "qdrant", "faiss"], "vector-db"),
+            (
+                ["openai", "anthropic", "langchain", "llama_index", "groq", "together"],
+                "llm-api",
+            ),
+            (
+                ["numpy", "pandas", "sklearn", "scikit-learn", "matplotlib", "scipy"],
+                "data-science",
+            ),
+            (
+                ["zep", "mem0", "chromadb", "pinecone", "weaviate", "qdrant", "faiss"],
+                "vector-db",
+            ),
             (["mcp", "fastmcp"], "mcp"),
         ]:
             if any(kw in deps for kw in keywords):
                 detected["domains"].append(domain)
 
         for keywords, tool in [
-            (["pytest"], "pytest"), (["black"], "black"),
-            (["ruff"], "ruff"), (["mypy"], "mypy"),
+            (["pytest"], "pytest"),
+            (["black"], "black"),
+            (["ruff"], "ruff"),
+            (["mypy"], "mypy"),
         ]:
             if any(kw in deps for kw in keywords):
                 detected["tools"].append(tool)
@@ -670,9 +878,21 @@ def detect_stack(project_path: Path) -> dict:
             detected["has_tests"] = True
             detected["commands"]["test"] = "pytest"
 
-        ai_dirs = {"models", "checkpoints", "embeddings", "inference", "training", "data", "datasets", "weights"}
+        ai_dirs = {
+            "models",
+            "checkpoints",
+            "embeddings",
+            "inference",
+            "training",
+            "data",
+            "datasets",
+            "weights",
+        }
         if ai_dirs & dir_names:
-            if not any(d in detected["domains"] for d in ["pytorch", "tensorflow", "huggingface"]):
+            if not any(
+                d in detected["domains"]
+                for d in ["pytorch", "tensorflow", "huggingface"]
+            ):
                 detected["domains"].append("ai-ml-generic")
 
     if "package.json" in file_names:
@@ -683,9 +903,12 @@ def detect_stack(project_path: Path) -> dict:
         scripts = pkg.get("scripts", {})
 
         for keywords, name in [
-            (["react", "@types/react"], "react"), (["next"], "nextjs"),
-            (["vue", "@vue"], "vue"), (["express"], "express"),
-            (["@nestjs/core", "nestjs"], "nestjs"), (["svelte"], "svelte"),
+            (["react", "@types/react"], "react"),
+            (["next"], "nextjs"),
+            (["vue", "@vue"], "vue"),
+            (["express"], "express"),
+            (["@nestjs/core", "nestjs"], "nestjs"),
+            (["svelte"], "svelte"),
         ]:
             if any(kw in dep_str for kw in keywords):
                 detected["frameworks"].append(name)
@@ -694,8 +917,11 @@ def detect_stack(project_path: Path) -> dict:
             detected["languages"].append("typescript")
 
         for keywords, tool in [
-            (["vite"], "vite"), (["jest"], "jest"), (["vitest"], "vitest"),
-            (["playwright"], "playwright"), (["tailwindcss"], "tailwind"),
+            (["vite"], "vite"),
+            (["jest"], "jest"),
+            (["vitest"], "vitest"),
+            (["playwright"], "playwright"),
+            (["tailwindcss"], "tailwind"),
             (["prisma"], "prisma"),
         ]:
             if any(kw in dep_str for kw in keywords):
@@ -800,8 +1026,8 @@ def build_dynamic_skill_guide(
 
     found_any = False
     for intent_key, intent in INTENT_MAP.items():
-        matched_skills   = [s for s in intent["skills"]   if s in available_skills]
-        matched_agents   = [a for a in intent["agents"]   if a in available_agents]
+        matched_skills = [s for s in intent["skills"] if s in available_skills]
+        matched_agents = [a for a in intent["agents"] if a in available_agents]
         matched_commands = [c for c in intent["commands"] if c in available_commands]
 
         if not matched_skills and not matched_agents and not matched_commands:
@@ -830,18 +1056,26 @@ def build_dynamic_skill_guide(
     return lines
 
 
-def build_claude_md(project_path, stack, active_skills, active_agents, active_rules,
-                    available_skills, available_agents, available_commands):
+def build_claude_md(
+    project_path,
+    stack,
+    active_skills,
+    active_agents,
+    active_rules,
+    available_skills,
+    available_agents,
+    available_commands,
+):
     project_name = project_path.name
-    langs   = ", ".join(stack["languages"])  or "unknown"
-    fws     = ", ".join(stack["frameworks"]) or "none"
-    domains = ", ".join(stack["domains"])    or "general"
+    langs = ", ".join(stack["languages"]) or "unknown"
+    fws = ", ".join(stack["frameworks"]) or "none"
+    domains = ", ".join(stack["domains"]) or "general"
 
     lines = [
         MARKER,
         f"# CLAUDE.md — {project_name}",
         f"> Generated by [claude-code-adaptive-skills](https://github.com/keerthivinod/claude-code-adaptive-skills) v{VERSION}",
-        f"> Re-run `python ~/.claude/adaptive-skills/detector.py --force` to refresh.",
+        "> Re-run `python ~/.claude/adaptive-skills/detector.py --force` to refresh.",
         "",
         "## How to use this file",
         "This CLAUDE.md has two parts:",
@@ -892,31 +1126,43 @@ def build_claude_md(project_path, stack, active_skills, active_agents, active_ru
         lines.append("")
 
     # Dynamic skill selection guide (skills + agents + commands)
-    lines += build_dynamic_skill_guide(available_skills, available_agents, available_commands)
+    lines += build_dynamic_skill_guide(
+        available_skills, available_agents, available_commands
+    )
 
     # Stack-specific guidance
     guidance: list = []
     if "python" in stack["languages"]:
-        guidance += ["### Python",
+        guidance += [
+            "### Python",
             "- Use virtual environment: `.\\venv\\Scripts\\activate` (Windows) or `source venv/bin/activate`",
             "- Load secrets via `python-dotenv` — never hardcode",
-            "- Type hints required on all function signatures"]
+            "- Type hints required on all function signatures",
+        ]
     if "pytorch" in stack["domains"]:
-        guidance += ["### PyTorch",
+        guidance += [
+            "### PyTorch",
             "- Always check `torch.cuda.is_available()` before training",
-            "- Call `model.eval()` and `torch.no_grad()` during inference"]
+            "- Call `model.eval()` and `torch.no_grad()` during inference",
+        ]
     if "llm-api" in stack["domains"]:
-        guidance += ["### LLM API",
+        guidance += [
+            "### LLM API",
             "- Store all API keys in `.env` (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)",
-            "- Handle rate limits with exponential backoff retry logic"]
+            "- Handle rate limits with exponential backoff retry logic",
+        ]
     if "fullstack" in stack["domains"]:
-        guidance += ["### Full-Stack",
+        guidance += [
+            "### Full-Stack",
             "- Run backend and frontend in separate terminals",
-            "- CORS must be configured on the backend to allow the frontend origin"]
+            "- CORS must be configured on the backend to allow the frontend origin",
+        ]
     if stack.get("has_docker"):
-        guidance += ["### Docker",
+        guidance += [
+            "### Docker",
             "- Rebuild after dependency changes: `docker-compose up --build`",
-            "- Never put secrets in Dockerfile — use env files"]
+            "- Never put secrets in Dockerfile — use env files",
+        ]
 
     if guidance:
         lines += ["## Stack Guidance", ""] + guidance + [""]
@@ -934,7 +1180,7 @@ def build_claude_md(project_path, stack, active_skills, active_agents, active_ru
 def main():
     args = sys.argv[1:]
     dry_run = "--dry-run" in args
-    force   = "--force"   in args
+    force = "--force" in args
     claude_arg = None
     positional = []
     i = 0
@@ -951,33 +1197,46 @@ def main():
     project_path = Path(positional[0]).resolve() if positional else Path.cwd().resolve()
 
     if not project_path.is_dir():
-        print(f"[adaptive-skills] ERROR: '{project_path}' is not a directory.", file=sys.stderr)
+        print(
+            f"[adaptive-skills] ERROR: '{project_path}' is not a directory.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     try:
         all_names = {e.name for e in project_path.iterdir()}
     except PermissionError as exc:
-        print(f"[adaptive-skills] ERROR: Cannot read '{project_path}': {exc}", file=sys.stderr)
+        print(
+            f"[adaptive-skills] ERROR: Cannot read '{project_path}': {exc}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
-    is_project = (bool(all_names & PROJECT_INDICATORS) or
-                  bool(list(project_path.glob("*.csproj"))) or
-                  bool(list(project_path.glob("*.cpp"))))
+    is_project = (
+        bool(all_names & PROJECT_INDICATORS)
+        or bool(list(project_path.glob("*.csproj")))
+        or bool(list(project_path.glob("*.cpp")))
+    )
     if not is_project:
         sys.exit(0)
 
-    claude_dir          = claude_arg or find_claude_dir()
-    available_skills    = discover_skills(claude_dir)   if claude_dir else set()
-    available_agents    = discover_agents(claude_dir)   if claude_dir else set()
-    available_commands  = discover_commands(claude_dir) if claude_dir else set()
-    available_rules     = discover_rules(claude_dir)    if claude_dir else []
+    claude_dir = claude_arg or find_claude_dir()
+    available_skills = discover_skills(claude_dir) if claude_dir else set()
+    available_agents = discover_agents(claude_dir) if claude_dir else set()
+    available_commands = discover_commands(claude_dir) if claude_dir else set()
+    available_rules = discover_rules(claude_dir) if claude_dir else []
 
-    stack         = detect_stack(project_path)
+    stack = detect_stack(project_path)
     active_skills = resolve_skills(stack, available_skills)
     active_agents = resolve_agents(stack, available_agents)
 
-    lang_rule_map = {"python": "rules/python", "nodejs": "rules/js",
-                     "typescript": "rules/ts", "rust": "rules/rust", "go": "rules/go"}
+    lang_rule_map = {
+        "python": "rules/python",
+        "nodejs": "rules/js",
+        "typescript": "rules/ts",
+        "rust": "rules/rust",
+        "go": "rules/go",
+    }
     filtered_rules = []
     for rule in available_rules:
         for lang, prefix in lang_rule_map.items():
@@ -989,8 +1248,14 @@ def main():
                 filtered_rules.append(rule)
 
     content = build_claude_md(
-        project_path, stack, active_skills, active_agents, filtered_rules,
-        available_skills, available_agents, available_commands
+        project_path,
+        stack,
+        active_skills,
+        active_agents,
+        filtered_rules,
+        available_skills,
+        available_agents,
+        available_commands,
     )
 
     if dry_run:
@@ -999,18 +1264,25 @@ def main():
 
     output_path = project_path / "CLAUDE.md"
     if not force and output_path.exists():
+        if output_path.stat().st_size > MAX_FILE_SIZE:
+            print("[adaptive-skills] CLAUDE.md is too large. Use --force to overwrite.")
+            sys.exit(0)
         existing = output_path.read_text(encoding="utf-8", errors="ignore")
         if MARKER not in existing:
-            print("[adaptive-skills] CLAUDE.md exists (manual edit). Use --force to overwrite.")
+            print(
+                "[adaptive-skills] CLAUDE.md exists (manual edit). Use --force to overwrite."
+            )
             sys.exit(0)
 
     output_path.write_text(content, encoding="utf-8")
-    langs_str  = ", ".join(stack["languages"]) or "none"
-    skills_str = ", ".join(active_skills[:4])  or "none installed"
+    langs_str = ", ".join(stack["languages"]) or "none"
+    skills_str = ", ".join(active_skills[:4]) or "none installed"
     if len(active_skills) > 4:
         skills_str += f" (+{len(active_skills) - 4} more)"
     cmds_count = len(available_commands)
-    print(f"[adaptive-skills] ✓ {project_path.name} | stack: {langs_str} | skills: {skills_str} | commands: {cmds_count}")
+    print(
+        f"[adaptive-skills] ✓ {project_path.name} | stack: {langs_str} | skills: {skills_str} | commands: {cmds_count}"
+    )
 
 
 if __name__ == "__main__":
